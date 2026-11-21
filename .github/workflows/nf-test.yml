@@ -56,9 +56,41 @@ jobs:
           echo ${{ steps.set-shards.outputs.shard }}
           echo ${{ steps.set-shards.outputs.total_shards }}
 
+  # Build the nf-bccdc-provenance plugin once per run and share it with every
+  # test job, instead of each matrix job building it (and downloading Gradle
+  # plus its dependencies) itself. Gradle's downloads are cached between runs.
+  build-plugin:
+    name: build-plugin
+    runs-on: # use GitHub runners
+      - "ubuntu-latest"
+    steps:
+      - uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd # v6
+
+      - name: Set up Java (with Gradle cache)
+        uses: actions/setup-java@d1374f8ac74474200d16ef8ecee22c7ae7a51880 # v6.3.0
+        with:
+          distribution: temurin
+          java-version: "21"
+          cache: gradle
+          cache-dependency-path: |
+            plugins/nf-bccdc-provenance/*.gradle
+            plugins/nf-bccdc-provenance/gradle/wrapper/gradle-wrapper.properties
+
+      - name: Build plugin
+        working-directory: plugins/nf-bccdc-provenance
+        run: ./gradlew --no-daemon assemble
+
+      - name: Upload plugin
+        uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7.0.2
+        with:
+          name: nf-bccdc-provenance
+          path: plugins/nf-bccdc-provenance/build/distributions/*.zip
+          if-no-files-found: error
+          retention-days: 1
+
   nf-test:
     name: "${{ matrix.profile }} | ${{ matrix.NXF_VER }} | ${{ matrix.shard }}/${{ needs.nf-test-changes.outputs.total_shards }}"
-    needs: [nf-test-changes]
+    needs: [nf-test-changes, build-plugin]
     if: ${{ needs.nf-test-changes.outputs.total_shards != '0' }}
     runs-on: # use GitHub runners
       - "ubuntu-latest"
