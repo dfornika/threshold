@@ -12,37 +12,36 @@ import nextflow.processor.TaskRun
 import nextflow.trace.TraceObserverV2
 import nextflow.trace.event.FilePublishEvent
 import nextflow.trace.event.TaskEvent
+import org.yaml.snakeyaml.DumperOptions
+import org.yaml.snakeyaml.Yaml
 
 /**
- * SPIKE observer: records what Nextflow exposes about each task, so we can
- * see whether everything the BCCDC pipeline-provenance schema needs is
- * available to a plugin:
+ * Collects what each task did (executed, cached or failed) and every published
+ * file, then at the end of the run writes BCCDC-PHL pipeline-provenance
+ * records (https://github.com/BCCDC-PHL/pipeline-provenance-schema):
  *
- *   - which sample a task ran for (a `meta` map with an `id` in its inputs)
- *   - the process name and the task's container
- *   - tool arguments (`ext.args` from conf/modules.config)
- *   - tool versions (the `eval(...)` outputs nf-core modules emit to the
- *     `versions` topic)
- *   - cached (-resume) tasks as well as executed ones
- *   - published files, and which task produced them
+ *   <directory>/<sample>_provenance.yml   one per sample
+ *   <directory>/run_provenance.yml        tasks that don't belong to a sample
  *
- * At the end of the run it writes everything to
- * <outdir>/pipeline_info/bccdc_provenance_spike.jsonl: one JSON object per
- * line - a `run` record, then one `task` record per task, then one `publish`
- * record per published file.
+ * Record building lives in ProvenanceBuilder; this class only turns Nextflow's
+ * task objects into plain maps (TaskInfo) and writes the result.
  *
- * Deliberately dynamic and defensive: the point is to find out how things are
- * represented, so anything unexpected is recorded (class name + toString)
- * rather than failing.
+ * Dynamic and defensive on purpose: anything unexpected about a task is
+ * skipped rather than failing the run - provenance must never sink a run.
  */
 @Slf4j
 @CompileDynamic
 class ProvenanceObserver implements TraceObserverV2 {
 
+    private final ProvenanceConfig config
     private Session session
-    private final List<Map> taskRecords = []
-    private final List<Map> publishRecords = []
+    private final List<Map> tasks = []
+    private final List<Map> published = []
     private final ReentrantLock lock = new ReentrantLock()
+
+    ProvenanceObserver(ProvenanceConfig config) {
+        this.config = config
+    }
 
     @Override
     void onFlowCreate(Session session) {
@@ -61,13 +60,10 @@ class ProvenanceObserver implements TraceObserverV2 {
 
     @Override
     void onFilePublish(FilePublishEvent event) {
-        final rec = [
-            type  : 'publish',
-            source: event.source?.toString(),
-            target: event.target?.toString(),
-        ]
+        if( event.source == null || event.target == null )
+            return
         lock.lock()
-        try { publishRecords << rec } finally { lock.unlock() }
+        try { published << [source: normalize(event.source), target: normalize(event.target)] } finally { lock.unlock() }
     }
 
     @Override
@@ -76,131 +72,202 @@ class ProvenanceObserver implements TraceObserverV2 {
             write()
         }
         catch( Throwable e ) {
-            log.warn "nf-bccdc-provenance (spike): failed to write report: ${e.message}", e
+            log.warn "nf-bccdc-provenance: failed to write provenance records: ${e.message}", e
         }
     }
 
-    // -- recording -----------------------------------------------------------
+    // -- collecting ----------------------------------------------------------
 
     private void record(TaskRun task, boolean cached) {
-        Map rec
+        Map info
         try {
-            rec = describeTask(task, cached)
+            info = describe(task, cached)
         }
         catch( Throwable e ) {
-            rec = [type: 'task', name: safe { task.name }, error: "${e.class.name}: ${e.message}".toString()]
+            log.debug "nf-bccdc-provenance: couldn't describe task ${task?.name}: ${e.message}"
+            return
         }
         lock.lock()
-        try { taskRecords << rec } finally { lock.unlock() }
+        try { tasks << info } finally { lock.unlock() }
     }
 
-    private Map describeTask(TaskRun task, boolean cached) {
-        final inputs = safe { task.inputs }
-        final outputs = safe { task.outputs }
+    /** A TaskInfo map - see ProvenanceBuilder for the fields it relies on. */
+    private Map describe(TaskRun task, boolean cached) {
+        final inputs = (task.inputs ?: [:]) as Map
+        final outputs = (task.outputs ?: [:]) as Map
         return [
-            type      : 'task',
-            name      : task.name,
-            process   : safe { task.processor?.name },
-            tag       : safe { task.config?.get('tag')?.toString() },
-            cached    : cached,
-            exit      : safe { task.exitStatus },
-            hash      : safe { task.hash?.toString() },
-            workDir   : safe { task.workDir?.toString() },
-            container : safe { task.container },
-            sample_id : findSampleId(inputs),
-            ext_args  : describeValue(safe { extArgs(task) }),
-            inputs    : describeParams(inputs),
-            outputs   : describeParams(outputs),
+            name     : task.name,
+            process  : simpleName(task.processor?.name),
+            cached   : cached,
+            success  : cached || isSuccess(task),
+            sampleId : findSampleId(inputs),
+            container: containerName(task),
+            extArgs  : extArgs(task),
+            tools    : versions(outputs),
+            inputs   : fileInputs(inputs),
+            outputs  : fileOutputs(outputs),
+            workDir  : task.workDir ? normalize(task.workDir) : null,
         ]
     }
 
-    /** `ext.args` as configured in conf/modules.config (may be a closure). */
-    private Object extArgs(TaskRun task) {
-        final ext = task.config?.get('ext')
-        if( ext instanceof Map )
-            return ext.get('args')
-        return ext
+    private static String simpleName(String processName) {
+        return processName ? processName.tokenize(':').last() : null
+    }
+
+    /**
+     * The container image as the module declares it (e.g. a registry or
+     * depot URL), rather than `task.container`, which under Apptainer/
+     * Singularity is the path of the locally cached image file.
+     */
+    private static String containerName(TaskRun task) {
+        try {
+            final declared = task.config?.get('container')
+            if( declared instanceof CharSequence && declared.toString().trim() )
+                return declared.toString().trim()
+        }
+        catch( Throwable e ) {
+            // fall back to the resolved name
+        }
+        return task.container
+    }
+
+    private static boolean isSuccess(TaskRun task) {
+        try {
+            return task.isSuccess()
+        }
+        catch( Throwable e ) {
+            return task.exitStatus == 0
+        }
     }
 
     /** The `id` of the first Map-valued input that has one (nf-core `meta`). */
-    private String findSampleId(Object inputs) {
-        if( !(inputs instanceof Map) )
-            return null
-        for( Object value : (inputs as Map).values() ) {
+    private static String findSampleId(Map inputs) {
+        for( Object value : inputs.values() ) {
             if( value instanceof Map && (value as Map).containsKey('id') )
                 return (value as Map).get('id')?.toString()
         }
         return null
     }
 
-    private List<Map> describeParams(Object params) {
-        if( !(params instanceof Map) )
-            return params == null ? [] : [[raw: describeValue(params)]]
-        return (params as Map).collect { key, value ->
-            [
-                param      : safe { key.name },
-                param_class: key?.getClass()?.simpleName,
-                value      : describeValue(value),
-            ]
+    /** `ext.args` from conf/modules.config, already resolved for this task. */
+    private static String extArgs(TaskRun task) {
+        final ext = task.config?.get('ext')
+        final args = ext instanceof Map ? (ext as Map).get('args') : null
+        return args instanceof CharSequence && args.toString().trim() ? args.toString().trim() : null
+    }
+
+    /**
+     * Tool versions from nf-core-style `versions` outputs:
+     * `tuple val(process), val(tool), eval(version)`. Each eval output's
+     * value is the version; the value output just before it is the tool name.
+     */
+    private static List<Map> versions(Map outputs) {
+        final List<Map> tools = []
+        String lastValue = null
+        outputs.each { param, value ->
+            final kind = param?.getClass()?.simpleName
+            if( kind == 'ValueOutParam' && value instanceof CharSequence ) {
+                lastValue = value.toString()
+            }
+            else if( kind == 'CmdEvalParam' && lastValue && value != null ) {
+                tools << [name: lastValue, version: value.toString().trim()]
+                lastValue = null
+            }
         }
+        return tools
     }
 
-    private Map describeValue(Object value) {
-        if( value == null )
-            return null
-        String text = value.toString()
-        if( text.length() > 500 )
-            text = text.substring(0, 500) + '...'
-        return [class: value.getClass().name, value: text]
+    /** [param: <input name>, path: <original location>] for every file input. */
+    private static List<Map> fileInputs(Map inputs) {
+        final List<Map> files = []
+        inputs.each { param, value ->
+            if( param?.getClass()?.simpleName != 'FileInParam' )
+                return
+            final holders = value instanceof Collection ? value : [value]
+            holders.each { holder ->
+                final source = holder?.hasProperty('sourceObj') ? holder.sourceObj : null
+                if( source instanceof Path )
+                    files << [param: param.name, path: normalize(source as Path)]
+            }
+        }
+        return files
     }
 
-    private static Object safe(Closure c) {
-        try { return c.call() }
-        catch( Throwable e ) { return "<error: ${e.class.simpleName}: ${e.message}>".toString() }
+    private static List<Path> fileOutputs(Map outputs) {
+        final List<Path> files = []
+        outputs.each { param, value ->
+            if( param?.getClass()?.simpleName != 'FileOutParam' )
+                return
+            final values = value instanceof Collection ? value : [value]
+            values.each { v -> if( v instanceof Path ) files << normalize(v as Path) }
+        }
+        return files
     }
 
-    // -- output --------------------------------------------------------------
+    private static Path normalize(Path path) {
+        return path.toAbsolutePath().normalize()
+    }
+
+    // -- writing -------------------------------------------------------------
 
     private void write() {
-        final outdir = session.outputDir ?: (session.params?.outdir ? session.params.outdir as Path : null)
-        if( !outdir ) {
-            log.warn "nf-bccdc-provenance (spike): no output directory - nothing written"
+        final outdir = session.outputDir ?: (session.params?.outdir ? (session.params.outdir as Path) : null)
+        final configured = config.directory as Path
+        final dir = configured.isAbsolute() ? configured : (outdir ? outdir.resolve(config.directory) : null)
+        if( !dir ) {
+            log.warn "nf-bccdc-provenance: no output directory - no provenance records written"
             return
         }
-        final path = (outdir as Path).resolve('pipeline_info/bccdc_provenance_spike.jsonl')
-        Files.createDirectories(path.parent)
+        Files.createDirectories(dir)
 
+        final builder = new ProvenanceBuilder(
+            pipelineRecord(),
+            tasks,
+            published,
+            session.workDir ? normalize(session.workDir) : null,
+            config.hashMaxSize?.toBytes() ?: 0L
+        )
+
+        final yaml = newYaml()
+        builder.sampleIds().each { sampleId ->
+            dir.resolve("${sampleId}_provenance.yml").text = yaml.dump(builder.sampleRecords(sampleId))
+        }
+        dir.resolve('run_provenance.yml').text = yaml.dump(builder.runRecords())
+
+        if( config.debug )
+            writeDebug(dir)
+
+        log.info "nf-bccdc-provenance: wrote provenance for ${builder.sampleIds().size()} sample(s) to ${dir.toUriString()}"
+    }
+
+    private Map pipelineRecord() {
         final meta = session.workflowMetadata
-        final run = [
-            type          : 'run',
-            pipeline_name : safe { meta?.manifest?.name },
-            pipeline_version: safe { meta?.manifest?.version },
-            session_id    : safe { meta?.sessionId?.toString() },
-            run_name      : safe { meta?.runName },
-            start         : safe { meta?.start?.toString() },
-            complete      : safe { meta?.complete?.toString() },
-            success       : safe { meta?.success },
-            commit_id     : safe { meta?.commitId },
-            revision      : safe { meta?.revision },
-            profile       : safe { meta?.profile },
-            container_engine: safe { meta?.containerEngine },
-            nextflow      : safe { meta?.nextflow?.version?.toString() },
-            command_line  : safe { meta?.commandLine },
+        final Map record = [
+            pipeline_name           : meta?.manifest?.name,
+            pipeline_version        : meta?.manifest?.version,
+            nextflow_session_id     : meta?.sessionId?.toString(),
+            nextflow_run_name       : meta?.runName,
+            timestamp_analysis_start: meta?.start?.toString(),
+            nextflow_version        : meta?.nextflow?.version?.toString(),
         ]
+        if( meta?.commitId )
+            record.pipeline_commit = meta.commitId
+        return record.findAll { k, v -> v != null }
+    }
 
-        // Attribute each published file to the task whose work dir it came from.
-        final byWorkDir = taskRecords.findAll { it.workDir instanceof String }.collectEntries { [(it.workDir): it] }
-        publishRecords.each { pub ->
-            final owner = byWorkDir.find { dir, rec -> pub.source?.startsWith(dir + '/') }?.value
-            pub.task = owner?.name
-            pub.sample_id = owner?.sample_id
-        }
+    private static Yaml newYaml() {
+        final options = new DumperOptions()
+        options.defaultFlowStyle = DumperOptions.FlowStyle.BLOCK
+        options.indent = 2
+        options.indicatorIndent = 0
+        options.width = 1000
+        return new Yaml(options)
+    }
 
-        path.withWriter { w ->
-            w.writeLine(JsonOutput.toJson(run))
-            taskRecords.sort { it.name?.toString() }.each { w.writeLine(JsonOutput.toJson(it)) }
-            publishRecords.sort { it.target?.toString() }.each { w.writeLine(JsonOutput.toJson(it)) }
+    private void writeDebug(Path dir) {
+        dir.resolve('provenance_debug.jsonl').withWriter { w ->
+            tasks.each { t -> w.writeLine(JsonOutput.toJson(t.collectEntries { k, v -> [k, v instanceof Path || v instanceof Collection ? v.toString() : v] })) }
+            published.each { p -> w.writeLine(JsonOutput.toJson([source: p.source.toString(), target: p.target.toString()])) }
         }
-        log.info "nf-bccdc-provenance (spike): wrote ${taskRecords.size()} task and ${publishRecords.size()} publish records to ${path.toUriString()}"
     }
 }
