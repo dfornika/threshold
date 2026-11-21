@@ -71,9 +71,9 @@ workflow REFERENCE_GENOME {
         if (!params.reference_genome_cache_dir) {
             error("Reference genome fetch is enabled but --reference_genome_cache_dir was not set. Provide a cache directory or run with --skip_reference_genome_fetch.")
         }
-        FETCH_REFERENCE_GENOME(ch_source.accession.map { _meta, accession -> accession }.unique())
+        def fetch_reference_genome_out = FETCH_REFERENCE_GENOME(ch_source.accession.map { _meta, accession -> accession }.unique())
 
-        def ch_reference_by_accession = FETCH_REFERENCE_GENOME.out.fasta
+        def ch_reference_by_accession = fetch_reference_genome_out.fasta
             .map { fasta -> tuple(fasta.name.replace('.fasta.gz', ''), fasta) }
         ch_fetched_reference = ch_source.accession
             .map { meta, accession -> tuple(accession, meta) }
@@ -83,7 +83,7 @@ workflow REFERENCE_GENOME {
         // Same per-accession -> per-sample fan-out for the GFF, which is
         // optional (unannotated assemblies have none), so a sample may have a
         // FASTA but no GFF.
-        def ch_gff_by_accession = FETCH_REFERENCE_GENOME.out.gff
+        def ch_gff_by_accession = fetch_reference_genome_out.gff
             .map { gff -> tuple(gff.name.replace('.gff.gz', ''), gff) }
         ch_fetched_gff = ch_source.accession
             .map { meta, accession -> tuple(accession, meta) }

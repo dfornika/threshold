@@ -32,16 +32,16 @@ workflow SPECIES_ID {
         def ch_sylph_db = channel.value(file(params.sylph_db, checkIfExists: true))
         def ch_to_profile = ch_clean_reads.filter { meta, _reads -> meta.sample_type != 'amplicon_16s' }
 
-        SYLPH_PROFILE(ch_to_profile, ch_sylph_db)
-        ch_multiqc_files = ch_multiqc_files.mix(SYLPH_PROFILE.out.profile_out.map { _meta, file -> file })
+        def sylph_profile_out = SYLPH_PROFILE(ch_to_profile, ch_sylph_db)
+        ch_multiqc_files = ch_multiqc_files.mix(sylph_profile_out.profile_out.map { _meta, file -> file })
 
-        SPECIES_CHECK(SYLPH_PROFILE.out.profile_out, ch_species_id_manifest)
-        ch_species_check = SPECIES_CHECK.out.result
+        def species_check_out = SPECIES_CHECK(sylph_profile_out.profile_out, ch_species_id_manifest)
+        ch_species_check = species_check_out.result
 
         // .ifEmpty([]): collectFile emits nothing at all (not even the seed
         // header) if its input is empty - e.g. every sample is amplicon_16s -
         // so SAMPLE_SUMMARY still gets a usable value.
-        ch_species_check_summary = SPECIES_CHECK.out.result
+        ch_species_check_summary = species_check_out.result
             .map { _meta, file -> file }
             .collectFile(
                 name: 'species_check_summary.tsv',

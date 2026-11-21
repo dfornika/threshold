@@ -59,8 +59,8 @@ workflow READ_QC_AND_DEHOSTING {
     //
     // MODULE: Run FastQC on the raw input reads.
     //
-    FASTQC_RAW(ch_reads)
-    ch_multiqc_files = ch_multiqc_files.mix(FASTQC_RAW.out.zip.map{ _meta, file -> file })
+    def fastqc_raw_out = FASTQC_RAW(ch_reads)
+    ch_multiqc_files = ch_multiqc_files.mix(fastqc_raw_out.zip.map{ _meta, file -> file })
 
     //
     // Split reads by platform for platform-specific trimming/QC tools.
@@ -73,19 +73,19 @@ workflow READ_QC_AND_DEHOSTING {
     //
     // MODULE: Run fastp on Illumina paired-end reads
     //
-    FASTP_TRIM(ch_reads_by_platform.short_reads.map { meta, reads -> tuple(meta, reads, []) }, false, false, false)
-    ch_multiqc_files = ch_multiqc_files.mix(FASTP_TRIM.out.json.map{ _meta, file -> file })
+    def fastp_trim_out = FASTP_TRIM(ch_reads_by_platform.short_reads.map { meta, reads -> tuple(meta, reads, []) }, false, false, false)
+    ch_multiqc_files = ch_multiqc_files.mix(fastp_trim_out.json.map{ _meta, file -> file })
 
     //
     // MODULE: Run fastplong on Nanopore single-end reads
     //
-    FASTPLONG_TRIM(ch_reads_by_platform.long_reads, [], false, false)
-    ch_multiqc_files = ch_multiqc_files.mix(FASTPLONG_TRIM.out.json.map{ _meta, file -> file })
+    def fastplong_trim_out = FASTPLONG_TRIM(ch_reads_by_platform.long_reads, [], false, false)
+    ch_multiqc_files = ch_multiqc_files.mix(fastplong_trim_out.json.map{ _meta, file -> file })
 
     //
     // Recombine platform-specific trimmed reads into single channels.
     //
-    def ch_trimmed   = FASTP_TRIM.out.reads.mix(FASTPLONG_TRIM.out.reads)
+    def ch_trimmed   = fastp_trim_out.reads.mix(fastplong_trim_out.reads)
 
     //
     // MODULE: Dehost - remove host (human) reads by aligning to a host reference
@@ -99,13 +99,13 @@ workflow READ_QC_AND_DEHOSTING {
             error("Dehosting is enabled but --dehost_reference was not set. Provide a host reference (FASTA or minimap2 .mmi) or run with --skip_dehosting.")
         }
         def ch_host_reference = channel.value(file(params.dehost_reference, checkIfExists: true))
-        DEHOST(ch_trimmed, ch_host_reference, params.dehost_scrub_headers)
-        ch_clean_reads = DEHOST.out.reads
-        ch_multiqc_files = ch_multiqc_files.mix(DEHOST.out.stats.map { _meta, file -> file })
+        def dehost_out = DEHOST(ch_trimmed, ch_host_reference, params.dehost_scrub_headers)
+        ch_clean_reads = dehost_out.reads
+        ch_multiqc_files = ch_multiqc_files.mix(dehost_out.stats.map { _meta, file -> file })
 
         // .ifEmpty([]): see subworkflows/local/species_id.nf for why -
         // collectFile emits nothing at all if its input is completely empty.
-        ch_dehost_summary = DEHOST.out.stats
+        ch_dehost_summary = dehost_out.stats
             .map { _meta, file -> file }
             .collectFile(
                 name: 'dehost_summary.tsv',
@@ -120,19 +120,19 @@ workflow READ_QC_AND_DEHOSTING {
     // Final QC pass on the reads that flow to every downstream analysis -
     // see the measurement-only note above.
     //
-    FASTQC_FINAL(ch_clean_reads)
-    ch_multiqc_files = ch_multiqc_files.mix(FASTQC_FINAL.out.zip.map{ _meta, file -> file })
+    def fastqc_final_out = FASTQC_FINAL(ch_clean_reads)
+    ch_multiqc_files = ch_multiqc_files.mix(fastqc_final_out.zip.map{ _meta, file -> file })
 
     def ch_clean_reads_by_platform = ch_clean_reads.branch { meta, _reads ->
         long_reads:  meta.platform == 'nanopore'
         short_reads: meta.platform == 'illumina'
     }
 
-    FASTP_FINAL_QC(ch_clean_reads_by_platform.short_reads.map { meta, reads -> tuple(meta, reads, []) }, true, false, false)
-    ch_multiqc_files = ch_multiqc_files.mix(FASTP_FINAL_QC.out.json.map{ _meta, file -> file })
+    def fastp_final_qc_out = FASTP_FINAL_QC(ch_clean_reads_by_platform.short_reads.map { meta, reads -> tuple(meta, reads, []) }, true, false, false)
+    ch_multiqc_files = ch_multiqc_files.mix(fastp_final_qc_out.json.map{ _meta, file -> file })
 
-    FASTPLONG_FINAL_QC(ch_clean_reads_by_platform.long_reads, [], true, false)
-    ch_multiqc_files = ch_multiqc_files.mix(FASTPLONG_FINAL_QC.out.json.map{ _meta, file -> file })
+    def fastplong_final_qc_out = FASTPLONG_FINAL_QC(ch_clean_reads_by_platform.long_reads, [], true, false)
+    ch_multiqc_files = ch_multiqc_files.mix(fastplong_final_qc_out.json.map{ _meta, file -> file })
 
     emit:
     reads          = ch_clean_reads     // tuple(meta, reads) - trimmed + dehosted, ready for downstream analysis

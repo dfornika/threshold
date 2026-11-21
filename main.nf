@@ -67,7 +67,7 @@ workflow BCCDCPHL_THRESHOLD {
     //
     // WORKFLOW: Run pipeline
     //
-    THRESHOLD (
+    def threshold_out = THRESHOLD(
         samplesheet,
         params.multiqc_config,
         params.multiqc_logo,
@@ -75,7 +75,7 @@ workflow BCCDCPHL_THRESHOLD {
         params.outdir,
     )
     emit:
-    multiqc_report = THRESHOLD.out.multiqc_report // channel: /path/to/multiqc_report.html
+    threshold_out.multiqc_report // channel: /path/to/multiqc_report.html
 }
 /*
 ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
@@ -89,7 +89,7 @@ workflow {
     //
     // SUBWORKFLOW: Run initialisation tasks
     //
-    PIPELINE_INITIALISATION (
+    def pipeline_initialisation_out = PIPELINE_INITIALISATION(
         params.version,
         params.validate_params,
         params.monochrome_logs,
@@ -104,8 +104,8 @@ workflow {
     //
     // WORKFLOW: Run main workflow
     //
-    BCCDCPHL_THRESHOLD (
-        PIPELINE_INITIALISATION.out.samplesheet
+    def bccdcphl_threshold_out = BCCDCPHL_THRESHOLD(
+        pipeline_initialisation_out.samplesheet
     )
     //
     // SUBWORKFLOW: Run completion tasks
@@ -116,7 +116,7 @@ workflow {
         params.plaintext_email,
         params.outdir,
         params.monochrome_logs,
-        BCCDCPHL_THRESHOLD.out.multiqc_report
+        bccdcphl_threshold_out
     )
 }
 
