@@ -1,60 +1,76 @@
 //
-// Reference genome fetch/cache, for the alignment-based library-type
-// approaches (e.g. amplicon-vs-shotgun detection for Nanopore, where the
-// fastp-JSON-based heuristic doesn't apply - see docs/testing.md). Consumes
-// the species-ID consensus accession picked by SPECIES_ID
-// (SELECT_REFERENCE_ACCESSION - majority vote on species_taxid, falling back
-// to sylph > mash > sourmash - see bin/select_reference_accession.py), then
-// fetches and caches the genome, keyed by accession so it's never
-// re-downloaded across runs (Nextflow storeDir). Toggle with
-// --skip_reference_genome_fetch / --reference_genome_cache_dir. On by
-// default (network access assumed in deployment) - a fetch failure for one
-// accession degrades gracefully rather than failing the run, see
-// conf/modules.config's FETCH_REFERENCE_GENOME errorStrategy.
+// Reference genome per isolate sample - used by assembly QC (QUAST genome
+// fraction) and as the genome-size hint for the assemblers. Only `isolate`
+// samples are assembled, so only they get a reference, and nothing is
+// resolved or fetched at all when --skip_assembly is set.
+//
+// Source, in priority order:
+//   1. the samplesheet's `reference` column - a local FASTA path, used as-is,
+//      or an NCBI assembly accession (GCF_/GCA_...), fetched;
+//   2. otherwise, the accession of sylph's top hit, when SPECIES_CHECK found
+//      it consistent with the samplesheet (verdict `match`, or `not_checked`
+//      when no expected_species was given) - never for a `mismatch`.
+//
+// Fetched genomes are cached by accession in --reference_genome_cache_dir
+// (Nextflow storeDir), so each is downloaded once across runs. A fetch failure
+// degrades gracefully (see conf/modules.config's FETCH_REFERENCE_GENOME
+// errorStrategy) - the sample just has no reference. Toggle fetching with
+// --skip_reference_genome_fetch; local FASTA paths are used either way.
 //
 
 include { FETCH_REFERENCE_GENOME } from '../../modules/local/fetch_reference_genome/main'
 
+def isAssemblyAccession(value) {
+    return value ==~ /^GC[AF]_\d+(\.\d+)?$/
+}
+
 workflow REFERENCE_GENOME {
 
     take:
-    ch_species_id_consensus   // tuple(meta, reference_selection.tsv) - from SPECIES_ID (SELECT_REFERENCE_ACCESSION), one row per sample
-    outdir
+    ch_clean_reads     // tuple(meta, reads)
+    ch_species_check   // tuple(meta, species_check.tsv) - from SPECIES_ID
 
     main:
 
-    def ch_multiqc_files    = channel.empty()
-    def ch_sample_reference = channel.empty()
+    def ch_isolates = ch_clean_reads
+        .filter { meta, _reads -> meta.sample_type == 'isolate' && !params.skip_assembly }
+        .map { meta, _reads -> tuple(meta.id, meta) }
 
-    if (!params.skip_reference_genome_fetch) {
+    // Observed accession from the species check, only where it's consistent
+    // with the samplesheet. Join by meta.id, never on the whole meta map:
+    // meta maps captured at different points need not be identical.
+    def ch_observed = ch_species_check.map { meta, file ->
+        def cols = file.text.trim().split('\t')
+        tuple(meta.id, (cols[2] in ['match', 'not_checked'] && cols[4] != 'NA') ? cols[4] : null)
+    }
+
+    def ch_source = ch_isolates
+        .join(ch_observed, remainder: true)
+        .filter { entry -> entry[1] != null }   // drop species-check rows for non-isolates
+        .map { _id, meta, observed -> tuple(meta, meta.reference ?: observed) }
+        .branch { _meta, reference ->
+            none:      !reference
+            accession: isAssemblyAccession(reference)
+            fasta:     true
+        }
+
+    def ch_local_reference = ch_source.fasta.map { meta, path -> tuple(meta, file(path, checkIfExists: true)) }
+
+    def ch_fetched_reference = channel.empty()
+    if (!params.skip_reference_genome_fetch && !params.skip_assembly) {
         if (!params.reference_genome_cache_dir) {
             error("Reference genome fetch is enabled but --reference_genome_cache_dir was not set. Provide a cache directory or run with --skip_reference_genome_fetch.")
         }
-        def ch_selected_accession = ch_species_id_consensus
-            .map { meta, file -> tuple(meta, file.text.trim().split('\t')[2]) }
-            .branch { _meta, accession ->
-                found: accession != 'NA'
-                no_hit: true
-            }
-
-        def ch_accessions_to_fetch = ch_selected_accession.found
-            .map { _meta, accession -> accession }
-            .unique()
-        FETCH_REFERENCE_GENOME(ch_accessions_to_fetch)
+        FETCH_REFERENCE_GENOME(ch_source.accession.map { _meta, accession -> accession }.unique())
 
         def ch_reference_by_accession = FETCH_REFERENCE_GENOME.out.fasta
             .map { fasta -> tuple(fasta.name.replace('.fasta.gz', ''), fasta) }
-        ch_sample_reference = ch_selected_accession.found
+        ch_fetched_reference = ch_source.accession
             .map { meta, accession -> tuple(accession, meta) }
             .combine(ch_reference_by_accession, by: 0)
             .map { _accession, meta, fasta -> tuple(meta, fasta) }
-        // ch_sample_reference: tuple(meta, cached reference FASTA) per sample
-        // that had a species-ID consensus and whose fetch succeeded (a
-        // fetch that's retried and then ignored after failure just leaves
-        // that sample out of this channel, same as "no consensus").
     }
 
     emit:
-    sample_reference = ch_sample_reference   // tuple(meta, cached reference FASTA) - empty channel if this stage is off
-    multiqc_files     = ch_multiqc_files
+    sample_reference = ch_local_reference.mix(ch_fetched_reference)   // tuple(meta, reference FASTA) - isolates with a reference only
 }

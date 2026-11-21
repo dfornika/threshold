@@ -5,14 +5,9 @@
 */
 include { MULTIQC                       } from '../modules/nf-core/multiqc/main'
 include { READ_QC_AND_DEHOSTING         } from '../subworkflows/local/read_qc_and_dehosting'
-include { LIBRARY_TYPE_REFERENCE_FREE   } from '../subworkflows/local/library_type_reference_free'
 include { SPECIES_ID                    } from '../subworkflows/local/species_id'
-include { SPECIES_COMPOSITION_ANALYSIS  } from '../subworkflows/local/species_composition_analysis'
 include { REFERENCE_GENOME              } from '../subworkflows/local/reference_genome'
-include { ALIGNMENT_BASED_LIBRARY_TYPE  } from '../subworkflows/local/alignment_based_library_type'
-include { LIBRARY_TYPE_CONSENSUS_ANALYSIS } from '../subworkflows/local/library_type_consensus'
-include { SIXTEEN_S_DETECTION           } from '../subworkflows/local/sixteen_s_detection'
-include { ASSEMBLY_ANALYSIS            } from '../subworkflows/local/assembly'
+include { ASSEMBLY_ANALYSIS             } from '../subworkflows/local/assembly'
 include { SAMPLE_SUMMARY                } from '../modules/local/sample_summary/main'
 include { paramsSummaryMap       } from 'plugin/nf-schema'
 include { paramsSummaryMultiqc   } from '../subworkflows/nf-core/utils_nfcore_pipeline'
@@ -40,124 +35,57 @@ workflow THRESHOLD {
     def ch_multiqc_files = channel.empty()
 
     //
+    // What each sample is (platform, sample_type, expected_species, and
+    // optionally reference / genome_size) comes from the samplesheet - see
+    // assets/schema_input.json. Nothing downstream tries to infer it.
+    //
+
+    //
     // SUBWORKFLOW: Read QC + dehosting - FastQC/fastp/fastplong on the raw
     // reads, dehosting, then a measurement-only FastQC/fastp/fastplong pass
-    // on the final reads that flow to every downstream analysis - see
-    // docs/testing.md and subworkflows/local/read_qc_and_dehosting.nf.
+    // on the final reads that flow to every downstream analysis.
     //
     READ_QC_AND_DEHOSTING(ch_samplesheet, outdir)
     def ch_clean_reads = READ_QC_AND_DEHOSTING.out.reads
-    def ch_trim_json   = READ_QC_AND_DEHOSTING.out.trim_json
     ch_multiqc_files   = ch_multiqc_files.mix(READ_QC_AND_DEHOSTING.out.multiqc_files)
 
     //
-    // SUBWORKFLOW: Library type, reference-free - the two amplicon-vs-shotgun
-    // approaches that need no fetched reference genome (LIBRARY_TYPE,
-    // LIBRARY_TYPE_CLUSTER). meta.library_type isn't tagged until
-    // LIBRARY_TYPE_CONSENSUS_ANALYSIS below, once the alignment-based
-    // methods have also had a chance to run - see docs/testing.md and
-    // subworkflows/local/library_type_reference_free.nf.
-    //
-    LIBRARY_TYPE_REFERENCE_FREE(ch_trim_json, ch_clean_reads, outdir)
-    ch_clean_reads   = LIBRARY_TYPE_REFERENCE_FREE.out.reads
-    ch_multiqc_files = ch_multiqc_files.mix(LIBRARY_TYPE_REFERENCE_FREE.out.multiqc_files)
-
-    //
-    // SUBWORKFLOW: Species identification - mash/sourmash/sylph, evaluated
-    // in parallel; see tests/data/species_db/README.md.
+    // SUBWORKFLOW: Species ID (sylph) + check against the samplesheet's
+    // expected_species - catches sample swaps / contamination / mislabelling.
     //
     def ch_species_id_manifest = params.species_id_manifest ? file(params.species_id_manifest, checkIfExists: true) : []
     SPECIES_ID(ch_clean_reads, ch_species_id_manifest, outdir)
     ch_multiqc_files = ch_multiqc_files.mix(SPECIES_ID.out.multiqc_files)
 
     //
-    // SUBWORKFLOW: Pure-culture vs. metagenomic detection from species-ID
-    // composition breadth. Tags meta.composition - see docs/testing.md and
-    // subworkflows/local/species_composition_analysis.nf.
+    // SUBWORKFLOW: Reference genome per isolate - the samplesheet's
+    // `reference` (local FASTA or fetched accession), else the species-ID
+    // top hit when it agrees with the samplesheet.
     //
-    SPECIES_COMPOSITION_ANALYSIS(ch_clean_reads, SPECIES_ID.out.sourmash_gather_result, ch_species_id_manifest, outdir)
-    ch_clean_reads   = SPECIES_COMPOSITION_ANALYSIS.out.reads
-    ch_multiqc_files = ch_multiqc_files.mix(SPECIES_COMPOSITION_ANALYSIS.out.multiqc_files)
+    REFERENCE_GENOME(ch_clean_reads, SPECIES_ID.out.species_check)
 
     //
-    // SUBWORKFLOW: Reference genome fetch/cache, from the species-ID
-    // consensus accession picked in SPECIES_ID - see docs/testing.md and
-    // subworkflows/local/reference_genome.nf.
-    //
-    REFERENCE_GENOME(SPECIES_ID.out.species_id_consensus, outdir)
-    ch_multiqc_files = ch_multiqc_files.mix(REFERENCE_GENOME.out.multiqc_files)
-
-    //
-    // SUBWORKFLOW: Library type, alignment-based - the two approaches that
-    // need the fetched reference genome (LIBRARY_TYPE_ALIGNED,
-    // LIBRARY_TYPE_PILEUP) - see docs/testing.md and
-    // subworkflows/local/alignment_based_library_type.nf.
-    //
-    ALIGNMENT_BASED_LIBRARY_TYPE(ch_clean_reads, REFERENCE_GENOME.out.sample_reference, outdir)
-    ch_multiqc_files = ch_multiqc_files.mix(ALIGNMENT_BASED_LIBRARY_TYPE.out.multiqc_files)
-
-    //
-    // SUBWORKFLOW: Library-type consensus - fuse the (up to 4) amplicon-vs-
-    // shotgun verdicts from LIBRARY_TYPE_REFERENCE_FREE and
-    // ALIGNMENT_BASED_LIBRARY_TYPE above into one majority-vote verdict per
-    // sample, and tag meta.library_type from it - see docs/testing.md and
-    // subworkflows/local/library_type_consensus.nf.
-    //
-    LIBRARY_TYPE_CONSENSUS_ANALYSIS(
-        ch_clean_reads,
-        LIBRARY_TYPE_REFERENCE_FREE.out.library_type_result,
-        LIBRARY_TYPE_REFERENCE_FREE.out.library_type_cluster_result,
-        ALIGNMENT_BASED_LIBRARY_TYPE.out.library_type_aligned_result,
-        ALIGNMENT_BASED_LIBRARY_TYPE.out.library_type_pileup_result,
-        outdir
-    )
-    ch_clean_reads   = LIBRARY_TYPE_CONSENSUS_ANALYSIS.out.reads
-    ch_multiqc_files = ch_multiqc_files.mix(LIBRARY_TYPE_CONSENSUS_ANALYSIS.out.multiqc_files)
-
-    //
-    // SUBWORKFLOW: 16S rRNA amplicon detection - only for samples whose
-    // composition breadth came back inconclusive (amplicon or not); see
-    // docs/testing.md and subworkflows/local/sixteen_s_detection.nf.
-    //
-    SIXTEEN_S_DETECTION(ch_clean_reads, outdir)
-    ch_clean_reads   = SIXTEEN_S_DETECTION.out.reads
-    ch_multiqc_files = ch_multiqc_files.mix(SIXTEEN_S_DETECTION.out.multiqc_files)
-
-    //
-    // SUBWORKFLOW: Draft genome assembly + assembly QC - only for pure-culture
-    // shotgun libraries (gated on meta.library_type/meta.composition), routed
-    // by platform to Shovill (Illumina) / Dragonflye (Nanopore), then QUAST +
-    // (optional) CheckM2 - see docs/testing.md and
-    // subworkflows/local/assembly.nf.
+    // SUBWORKFLOW: Draft genome assembly + assembly QC - isolates only,
+    // routed by platform to Shovill (Illumina) / Dragonflye (Nanopore), then
+    // QUAST + (optional) CheckM2.
     //
     ASSEMBLY_ANALYSIS(
         ch_clean_reads,
         REFERENCE_GENOME.out.sample_reference,
-        SPECIES_ID.out.species_id_consensus,
+        SPECIES_ID.out.species_check,
         outdir
     )
     ch_multiqc_files = ch_multiqc_files.mix(ASSEMBLY_ANALYSIS.out.multiqc_files)
 
     //
-    // MODULE: One-row-per-sample summary CSV, pulling the main verdict/metric
-    // from each per-stage summary TSV above - see docs/testing.md and
-    // modules/local/sample_summary/main.nf. Every stage input is optional
-    // (path or [] if that stage was skipped); the sample manifest from
-    // READ_QC_AND_DEHOSTING is the only required one, and anchors which rows
-    // exist regardless of which optional stages ran.
+    // MODULE: One-row-per-sample summary CSV. The sample manifest anchors
+    // which rows exist; every other input is optional ([] if that stage was
+    // skipped or reached no samples).
     //
     SAMPLE_SUMMARY(
         READ_QC_AND_DEHOSTING.out.sample_manifest,
         READ_QC_AND_DEHOSTING.out.dehost_summary,
-        LIBRARY_TYPE_REFERENCE_FREE.out.library_type_summary,
-        LIBRARY_TYPE_REFERENCE_FREE.out.library_type_cluster_summary,
-        ALIGNMENT_BASED_LIBRARY_TYPE.out.library_type_aligned_summary,
-        ALIGNMENT_BASED_LIBRARY_TYPE.out.library_type_pileup_summary,
-        LIBRARY_TYPE_CONSENSUS_ANALYSIS.out.library_type_consensus_summary,
-        SPECIES_ID.out.species_id_summary,
-        SPECIES_COMPOSITION_ANALYSIS.out.species_composition_summary,
-        SPECIES_ID.out.species_id_consensus_summary,
-        SIXTEEN_S_DETECTION.out.sixteen_s_summary,
+        SPECIES_ID.out.species_check_summary,
         ASSEMBLY_ANALYSIS.out.assembly_summary
     )
 

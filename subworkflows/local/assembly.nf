@@ -1,17 +1,15 @@
 //
-// Draft genome assembly + assembly QC, for pure-culture shotgun libraries
-// only. Two dedicated single-platform assemblers (no hybrid - the samplesheet
+// Draft genome assembly + assembly QC, for `isolate` samples only. Two dedicated single-platform assemblers (no hybrid - the samplesheet
 // is one platform per sample), routed by meta.platform:
 //   - Illumina  -> SHOVILL   (SPAdes/SKESA wrapper)
 //   - Nanopore  -> DRAGONFLYE (Flye + Racon/Medaka polish + reorientation)
 // then platform-agnostic QC on the resulting assembly:
 //   - QUAST    (contiguity: #contigs, N50, total length, largest contig)
 //   - CHECKM2  (completeness + contamination) - only when --checkm2_db is set,
-//     since its DIAMOND database is a large external download, same opt-in
-//     treatment as --reference_genome_cache_dir / --sixteen_s_db.
+//     since its DIAMOND database is a large external download.
 //
-// Gated on meta.library_type == 'shotgun' && meta.composition == 'pure_culture'
-// (both tags already set upstream). Toggle the whole stage with
+// Gated on the samplesheet's sample_type == 'isolate' (and, for Illumina,
+// paired-end reads - Shovill needs pairs). Toggle the whole stage with
 // --skip_assembly. See docs/testing.md.
 //
 
@@ -25,9 +23,9 @@ include { ASSEMBLY_SUMMARY  } from '../../modules/local/assembly_summary/main'
 workflow ASSEMBLY_ANALYSIS {
 
     take:
-    ch_clean_reads          // tuple(meta, reads) - meta carries platform/library_type/composition
-    ch_sample_reference     // tuple(meta, reference fasta) - from REFERENCE_GENOME; empty channel if fetch off/failed
-    ch_species_id_consensus // tuple(meta, consensus tsv) - from SPECIES_ID; taxid fallback for the gsize hint
+    ch_clean_reads          // tuple(meta, reads) - meta carries platform/sample_type from the samplesheet
+    ch_sample_reference     // tuple(meta, reference fasta) - from REFERENCE_GENOME; isolates with a reference only
+    ch_species_check        // tuple(meta, species_check tsv) - from SPECIES_ID; taxid fallback for the gsize hint
     outdir
 
     main:
@@ -37,18 +35,20 @@ workflow ASSEMBLY_ANALYSIS {
 
     if (!params.skip_assembly) {
         //
-        // Gate: only pure-culture shotgun libraries get assembled. Everything
-        // else (amplicon, metagenomic, inconclusive/no_data composition) is
-        // dropped from this stage.
+        // Gate: only isolates get assembled. Single-end Illumina isolates
+        // can't go through Shovill, so they're skipped with a warning.
         //
         def ch_gated = ch_clean_reads.branch { meta, _reads ->
-            assemble: meta.library_type == 'shotgun' && meta.composition == 'pure_culture'
+            assemble: meta.sample_type == 'isolate' && !(meta.platform == 'illumina' && meta.single_end)
             skip:     true
         }
+        ch_gated.skip
+            .filter { meta, _reads -> meta.sample_type == 'isolate' }
+            .subscribe { meta, _reads -> log.warn("Skipping assembly for ${meta.id}: single-end Illumina reads are not supported by Shovill") }
 
         //
-        // MODULE: Genome-size hint. Resolve a species-informed --gsize per
-        // sample - reference length when a genome was fetched, else a coarse
+        // MODULE: Genome-size hint. Resolve a --gsize per sample - the
+        // samplesheet's genome_size, else reference length, else a coarse
         // taxid lookup, else a generic default - and fold it into
         // meta.genome_size for the assemblers (see docs/testing.md). This
         // avoids the assemblers' own genome-size estimation, which produced a
@@ -57,21 +57,21 @@ workflow ASSEMBLY_ANALYSIS {
         // shallow Illumina data). Assembly quality is insensitive to this
         // within ~2x, so a ballpark is enough.
         //
-        // ch_sample_reference / ch_species_id_consensus meta were captured
+        // ch_sample_reference / ch_species_check meta were captured
         // earlier in the pipeline, so join by meta.id (remainder: true - a
-        // sample may have no reference and/or no consensus). The rejoin of the
+        // sample may have no reference and/or no species check). The rejoin of the
         // resolved size back onto the reads is a plain inner join, since
         // GENOME_SIZE runs for every assemble sample.
         //
         def ch_ref_by_id  = ch_sample_reference.map { m, fa -> tuple(m.id, fa) }
-        def ch_cons_by_id = ch_species_id_consensus.map { m, tsv -> tuple(m.id, tsv) }
+        def ch_taxid_by_id = ch_species_check.map { m, tsv -> tuple(m.id, tsv.text.trim().split('\t')[5]) }
 
         def ch_size_in = ch_gated.assemble
             .map { meta, _reads -> tuple(meta.id, meta) }
             .join(ch_ref_by_id, remainder: true)
-            .join(ch_cons_by_id, remainder: true)
-            .filter { entry -> entry[1] != null }   // keep only real assemble samples, not remainder-only ref/consensus rows
-            .map { _id, meta, reference, consensus -> tuple(meta, reference ?: [], consensus ?: []) }
+            .join(ch_taxid_by_id, remainder: true)
+            .filter { entry -> entry[1] != null }   // keep only real assemble samples, not remainder-only ref/species rows
+            .map { _id, meta, reference, taxid -> tuple(meta, reference ?: [], taxid ?: 'NA') }
 
         def ch_genome_size_table = channel.value(file("${projectDir}/assets/genome_sizes.tsv", checkIfExists: true))
         GENOME_SIZE(ch_size_in, ch_genome_size_table, params.default_genome_size)
@@ -111,13 +111,13 @@ workflow ASSEMBLY_ANALYSIS {
         //
         // MODULE: QUAST - contiguity + (when a reference is available)
         // reference-based metrics. Pair each assembly with the reference
-        // fetched for its consensus species (join by meta.id, remainder: true
+        // for its sample (join by meta.id, remainder: true
         // - a sample may have no reference if fetch was off/failed), then
         // multiMap into QUAST's three separate inputs so they stay aligned
         // per-sample. QUAST's module runs reference-based (`-r`) for samples
         // whose `reference` path is non-empty and reference-free for the rest,
         // per-item, so a mix of with/without-reference samples is handled in
-        // one call. The reference is the consensus *species'* genome, not the
+        // one call. The reference is usually a species representative, not the
         // sample's own strain, so genome fraction / NGA50 are robust but the
         // misassembly / mismatch counts reflect strain divergence too, not
         // just assembly error - see docs/testing.md (they stay in the full
@@ -151,7 +151,7 @@ workflow ASSEMBLY_ANALYSIS {
         // Pair each assembly's QUAST tsv with its CheckM2 tsv (if any) by
         // sample id and normalise into one row per sample. remainder: true +
         // `?: []` so samples flow through even when CheckM2 didn't run (no db)
-        // - the same join-by-id caution meta_utils.nf documents.
+        // - always join by meta.id, never on the whole meta map.
         //
         def ch_summary_in = QUAST.out.tsv
             .map { meta, tsv -> tuple(meta.id, meta, tsv) }
@@ -162,7 +162,7 @@ workflow ASSEMBLY_ANALYSIS {
 
         // .ifEmpty([]): see subworkflows/local/species_id.nf for why -
         // collectFile emits nothing at all if no sample reached assembly (e.g.
-        // no pure-culture shotgun libraries this run), so SAMPLE_SUMMARY still
+        // no isolates this run), so SAMPLE_SUMMARY still
         // gets a usable value.
         ch_assembly_summary = ASSEMBLY_SUMMARY.out.summary
             .map { _meta, file -> file }

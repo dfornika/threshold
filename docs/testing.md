@@ -37,11 +37,9 @@ tests/data/
       illumina/  KPNEUMONIAE_WGS_R1/R2, ECOLI_WGS_R1/R2, SARS2_AMPLICON_ILLUMINA_R1/R2
       nanopore/  SARS2_AMPLICON_ONT.fastq.gz
     reads_src/                   # pristine downloaded+downsampled SRA reads - NOT committed, see README
-  species_db/                  # tiny mash/sourmash/sylph DBs - see tests/data/species_db/README.md
+  species_db/                  # tiny sylph DB - see tests/data/species_db/README.md
     manifest.csv                 # 10 reference genomes: the 3 known species above + 7 decoys
-    build_dbs.py                 # regenerates everything below from manifest.csv
-    mash/species_mini.msh
-    sourmash/species_mini.sig.zip, sourmash/taxonomy.csv
+    build_dbs.py                 # regenerates the DB below from manifest.csv
     sylph/species_mini.syldb
     genomes_src/                 # downloaded genome FASTAs - NOT committed, see README
 ```
@@ -85,9 +83,8 @@ rather than being committed in-repo.
 ### Read QC + dehosting
 
 `READ_QC_AND_DEHOSTING` (`subworkflows/local/read_qc_and_dehosting.nf`) bundles
-everything that runs on every sample before any species-ID/library-type
-analysis touches the reads: platform tagging, FastQC, fastp/fastplong
-trimming, and dehosting (`DEHOST`).
+everything that runs on every sample before species ID or assembly touches
+the reads: FastQC, fastp/fastplong trimming, and dehosting (`DEHOST`).
 
 FastQC and fastp/fastplong each run **twice** - once on the raw input reads,
 and again on the final (trimmed + dehosted) reads that flow to every
@@ -117,170 +114,85 @@ suffix (`ext.prefix`, `conf/modules.config`) distinguishing them, rather
 than separate subdirectories - keeps the existing one-directory-per-tool
 layout unchanged for every other stage.
 
-### Species-ID databases
+### Samplesheet metadata instead of inference
 
-[`tests/data/species_db/`](../tests/data/species_db) holds tiny mash/sourmash/sylph
-databases built from 10 real reference genomes - the true species of every
-`test_full` sample, plus 7 decoys (including two deliberately "hard" same-genus/family
-cases) - so a species-ID call in `test_full` is checked against a known right answer
-rather than a database with only one possible entry. All three tools - mash,
-sourmash, sylph - are wired into the pipeline now (`--mash_db`/`--sourmash_db`/
-`--sylph_db`, all on by default) so results can be compared side by side; each
-tool's call gets normalised (`modules/local/species_id_summary/`,
-`bin/parse_species_id.py`) into one row per sample/tool in
-`${outdir}/species_id/species_id_summary.tsv`. See that directory's `README.md`
-for the genome panel, how each tool performed, and the summary format.
+What each sample *is* - `platform`, `sample_type` (`isolate` / `metagenomic` /
+`amplicon_16s` / `amplicon_other`), and optionally `expected_species`,
+`reference` and `genome_size` - comes from the samplesheet
+(`assets/schema_input.json`); `platform` and `sample_type` are required. In
+deployment, the automation system that launches the pipeline fills these in
+from the sequencing project's metadata.
 
-### Species composition (pure culture vs. metagenomic)
+Earlier versions tried to infer all of this from the reads instead: platform
+from single- vs paired-end, four independent amplicon-vs-shotgun detectors
+fused by majority vote, pure-culture-vs-metagenomic from sourmash composition
+breadth (with ANI clustering of the mash database to collapse naming
+artifacts), a gated 16S detector, and a mash/sourmash/sylph vote to pick a
+reference genome. Validation showed several of these had real, reproducible
+failure modes on difficult samples, and they made the pipeline's structure
+hard to follow. They were removed in favour of the samplesheet; see the git
+history (up to commit `d8423a3`) and the version of this page there for the
+full method-by-method rationale and validation results.
 
-`SPECIES_COMPOSITION` (`modules/local/species_composition/`,
-`bin/classify_species_composition.py`) answers a different question than
-species-ID's own top-hit call: not "what is the most likely organism" but
-"is there *one* organism here, or many". Sourmash's own `gather` output
-already answers this directly - it decomposes a sample into the set of
-reference genomes that best explain it, so a pure culture shows one
-genome explaining nearly everything, while a metagenomic sample takes many
-genomes to explain a similar fraction, none of them dominant. No new
-alignment or tool is needed - `SOURMASH_GATHER`'s existing output
-(previously truncated to its top row by `parse_species_id.py`) is reused in
-full.
+The samplesheet is validated up front: missing/invalid `platform` or
+`sample_type` fails the run, as does a Nanopore row with a `fastq_2`, or a
+sample whose repeated rows (multiple runs) disagree on any of these fields.
 
-The chosen statistic is `f_unique_weighted` (gather's incremental,
-non-overlapping contribution of each match - the same number gather's own
-human-readable summary shows as `p_query`), summarized as the *effective
-number of genomes* (inverse Simpson index over each hit's share of the
-total explained fraction) - low (~1) means one genome dominates; high means
-many contribute comparably.
+### Species-ID database
 
-**The Escherichia coli / Shigella problem**: a real, reproducible issue found
-while validating this (not assumed) - a pure *E. coli* culture's gather
-output includes several *Shigella* species as separate "hits" purely because
-they are ~98%+ ANI to *E. coli* (a pre-genomic-era clinical naming split, not
-a real genomic distinction - the same root cause behind the mixed-call
-behaviour widely seen with Kraken2 on this exact genus pair). Naively counted,
-this looks like spurious extra breadth for what is actually one organism.
+[`tests/data/species_db/`](../tests/data/species_db) holds a tiny sylph
+database built from 10 real reference genomes - the true species of every
+`test_full` sample, plus 7 decoys (including two deliberately "hard"
+same-genus/family cases) - so a species call in `test_full` is checked against
+a known right answer rather than a database with only one possible entry. See
+that directory's `README.md` for the genome panel and why sylph was kept over
+mash/sourmash.
 
-**Fix, applied principled rather than as a hardcoded exception list**:
-`REFERENCE_GENOME_DISTANCES` + `CLUSTER_REFERENCE_GENOMES`
-(`bin/cluster_reference_genomes.py`) run once per database (not per sample):
-all-vs-all `mash dist` on the database's own genomes, converted to an ANI
-estimate, union-find clustered at `--species_composition_ani_threshold`
-(default 95%, the conventional operational species boundary - the same one
-GTDB uses, which is why GTDB's own taxonomy already merges *Shigella* into
-*Escherichia coli*). `classify_species_composition.py` then reports **both**
-the naive (raw per-accession) and ANI-adjusted (cluster-collapsed) breadth
-side by side, rather than only the adjusted figure - specifically so the
-adjustment's effect can be spot-checked over time (a `note` column names
-which accessions actually got merged for a given sample) instead of trusted
-blindly. The verdict is based on the adjusted numbers.
+### Species ID + check against the samplesheet
 
-This isn't specific to *E. coli*/*Shigella* - clustering the 100-genome dev
-panel (see below) at 95% ANI also merged *Neisseria gonorrhoeae* with
-*N. meningitidis* without being told to, another well-documented close-relatedness
-pair. A hardcoded synonym list would need to know about cases like this in
-advance; the ANI-based approach doesn't.
+`SPECIES_ID` (`subworkflows/local/species_id.nf`) runs `SYLPH_PROFILE` on
+every sample except `amplicon_16s` ones (a whole-genome database recovers
+almost nothing from ~1.5kb of one gene, so any hit would be noise), then
+`SPECIES_CHECK` (`bin/check_species.py`) compares the top hit with
+`expected_species`:
 
-**Known limitation, found (not assumed) via the deeper dev metagenomic
-samples**: breadth is only meaningful if the reference database actually
-covers the sample's real organisms. A real animal-gut shotgun sample whose
-actual community wasn't well represented in our dev panel produced only one
-weak hit (0.02% of k-mers explained) and would otherwise have been called a
-confident "pure culture" - wrong, for the right reason: it isn't pure, the
-database just has nothing relevant. `--min-explained-frac` (default 5%) gates
-this - below it, the verdict is `inconclusive` rather than a confident but
-unreliable guess. The two 16S dev samples hit the same gate for a different
-reason (see below).
+- `match` - the top hit is the expected species (for `metagenomic` samples:
+  the expected species is among any of the hits);
+- `mismatch` - there were hits, but not of the expected species - a likely
+  sample swap, contamination or mislabel;
+- `no_hit` - sylph reported nothing above its own thresholds;
+- `not_checked` - no `expected_species` was given; the top hit is still
+  reported.
 
-**Validated against the tiny `tests/data/species_db/` panel (all correctly
-`pure_culture`, as expected for `test_full`'s four samples) and the larger
-100-genome dev panel** (`data/dev_species_db/` - see below): both pure
-cultures correctly `pure_culture` (including `KPNEUMONIAE_WGS_ONT_DEV`, whose
-ONT error rate dilutes its own top-hit fraction to just ~30%, but the
-effective-genome statistic still resolves it correctly since the remaining
-mass is spread across many individually-tiny noise hits, not one real
-competitor), the one dev metagenomic sample with good database coverage
-(`GUT_SHOTGUN_ONT_DEV`, real human gut) correctly `metagenomic`, and the
-three poorly-covered samples (an animal-gut shotgun sample plus both 16S
-amplicon samples) correctly `inconclusive` rather than a wrong confident
-answer.
+`expected_species` can be a species name or an NCBI taxid. With
+`--species_id_manifest`, it's matched against the hit's `species_name` /
+`organism` (names) or `species_taxid` / `taxid` (taxids) - so e.g. both
+"Severe acute respiratory syndrome coronavirus 2" and its current species
+name "Betacoronavirus pandemicum" match. Without a manifest, a name is matched
+as a substring of sylph's contig name. Collected into
+`${outdir}/species_id/species_check_summary.tsv`.
 
-**16S rRNA amplicon data needs a different reference entirely, not just a
-lower confidence bar**: sourmash recovered under 3% of k-mers for both 16S
-dev samples against the whole-genome database, because 16S reads sample
-~1.5kb of one gene, not whole genomes - there's almost nothing for a
-whole-genome sketch to match. This confirms an earlier discussion: assessing
-purity of 16S/marker-gene libraries needs a dedicated 16S reference database
-(NCBI's curated 16S rRNA RefSeq targeted-loci project, BioProject PRJNA33175,
-is the current plan - free, actively maintained, and stays on NCBI taxonomy
-like the rest of this pipeline, unlike SILVA which needs a commercial license
-beyond academic use), not an extension of the whole-genome species-ID DBs.
-Not yet implemented.
+**Validated** against `test_full`: all 4 samples `match` (including
+`ECOLI_WGS` given as taxid `562`). An `isolate` sample deliberately labelled
+with the wrong species comes back `mismatch`.
 
-**Needs both mash and sourmash enabled** (`--skip_mash`/`--skip_sourmash`
-both `false`) - it clusters mash's reference genomes, then applies that to
-sourmash's gather output; toggle the whole stage with
-`--skip_species_composition`. Unlike the alignment-based library-type
-stages, this needs no fetched reference genome, so it runs by default in
-every profile including plain `test`. Collected into
-`${outdir}/species_id/species_composition_summary.tsv`.
+### Reference genome
 
-#### Dev-only species database
+`REFERENCE_GENOME` (`subworkflows/local/reference_genome.nf`) resolves one
+reference per `isolate` sample (only isolates are assembled, and nothing is
+resolved when `--skip_assembly` is set), used for QUAST's reference-based
+metrics and the assembler genome-size hint. Priority:
 
-A moderately-sized, gitignored mash/sourmash/sylph database
-(`data/dev_species_db/`, not `tests/data/species_db/`'s tiny 10-genome
-panel) - 100 real bacterial genomes spanning gut commensals, clinical
-pathogens, close *E. coli*/*Klebsiella* relatives (deliberately included for
-this exact contamination/complex-resolution testing), and oral/environmental
-diversity. Composition-breadth questions only mean something against a
-database with real taxonomic diversity, which the tiny validation panel
-was never built to provide. See `data/dev_species_db/README.md` for the
-full panel and regeneration recipe.
+1. the samplesheet's `reference` column - a local FASTA path, used as-is, or
+   an NCBI assembly accession (`GCF_`/`GCA_`), fetched;
+2. otherwise the accession of sylph's top hit, when `SPECIES_CHECK` found it
+   consistent with the samplesheet (`match`, or `not_checked`) - never for a
+   `mismatch`.
 
-### Library type (amplicon vs. shotgun)
-
-`LIBRARY_TYPE` (`modules/local/library_type/`, `bin/classify_library_type.py`)
-classifies each Illumina paired-end sample as amplicon or shotgun from fastp's own
-QC JSON - no new tool or reference database needed. The signal: amplicon libraries
-show a sharp, narrow peak in the insert-size histogram (reads cluster around the
-fixed amplicon length) and elevated PCR duplication, vs. shotgun's broad insert-size
-spread and near-zero duplication. Validated against the three real Illumina samples
-in `tests/data/real/`: `SARS2_AMPLICON_ILLUMINA` (56-60% of read pairs within 10bp of
-the insert-size peak, 30% duplication) vs. `ECOLI_WGS`/`KPNEUMONIAE_WGS` (5-8%
-concentration, 0% duplication) - a wide margin either side of the 20% classification
-threshold.
-
-**Nanopore/long-read is not classified** - `fastplong`'s JSON reports neither a
-duplication rate nor an insert-size histogram (confirmed by inspecting real output,
-not assumed), and the raw read-length distribution on the one real ONT sample we have
-didn't show a comparably clean signal either (broad, smoothly decreasing, not a tight
-single mode - and there's no real ONT shotgun sample to contrast against). Real
-long-read amplicon detection likely needs an alignment-based approach (read start/end
-position clustering against a reference); out of scope for now. Long-read samples
-report `verdict=not_classified` with a reason, rather than a guess. Toggle the whole
-stage with `--skip_library_type`.
-
-### Species-ID consensus + reference genome fetch/cache
-
-- `SELECT_REFERENCE_ACCESSION` (`bin/select_reference_accession.py`) picks one
-  accession per sample from the mash/sourmash/sylph calls: majority vote on
-  `species_taxid` (2-of-2 or 2-of-3 agreement; a lone hit is trivially its own
-  consensus), falling back to a fixed priority - sylph, then mash, then
-  sourmash - if there's no majority, based on which gave the cleanest results
-  in our own evaluation (see `tests/data/species_db/README.md`). This is "the"
-  species-ID consensus call - it runs unconditionally as part of `SPECIES_ID`
-  itself (as long as at least one of mash/sourmash/sylph is enabled), not
-  gated behind reference-genome fetch, so a consensus organism call exists
-  even when `--skip_reference_genome_fetch` is set. Collected into
-  `${outdir}/species_id/species_id_consensus_summary.tsv`.
-- `REFERENCE_GENOME` (`subworkflows/local/reference_genome.nf`) consumes that
-  consensus accession and fetches the whole-assembly FASTA (all
-  contigs/plasmids) via NCBI's E-utilities (`esearch | elink | efetch`,
-  resolving assembly → nucleotide sequences), cached by accession using
-  Nextflow's `storeDir` in `--reference_genome_cache_dir` - a genome is never
-  re-downloaded across runs, and never re-downloaded twice in the same run
-  even if multiple samples resolve to the same accession (deduplicated before
-  fetching). This is the piece that unblocks the alignment-based library-type
-  approaches below for Nanopore, where the fastp-JSON heuristic doesn't apply.
+Fetching uses NCBI's E-utilities (`esearch | elink | efetch`, assembly →
+nucleotide sequences), cached by accession using Nextflow's `storeDir` in
+`--reference_genome_cache_dir` - a genome is never re-downloaded across runs,
+and deduplicated within a run when several samples share an accession.
 
 **Tool choice, checked rather than assumed**: `ncbi-genome-download` (what the
 nf-core `ncbigenomedownload` module wraps) currently fails against NCBI's live
@@ -296,363 +208,37 @@ alternative, but every container build we could find (bioconda/biocontainers,
 NCBI has kept backwards-compatible for decades - the same tool nf-core's own
 `entrezdirect` modules already use.
 
-**`FETCH_REFERENCE_GENOME` is on by default** (`--skip_reference_genome_fetch`
-defaults to `false`) - the planned deployment environments have network
-access, so unlike the earlier off-by-default design this is now assumed
-available rather than opt-in. A per-accession fetch failure (unreachable
-network, a bad/withdrawn accession, transient NCBI rate-limiting) doesn't fail
-the whole run: `conf/modules.config` gives this process
-`errorStrategy = { task.attempt <= 2 ? 'retry' : 'ignore' }` - it retries
-twice, then gives up gracefully. A sample whose fetch is ultimately ignored
-just ends up with no reference genome, identical to today's "stage off" path
-for that sample (`ALIGNMENT_BASED_LIBRARY_TYPE` simply doesn't run for it,
-and the library-type consensus below has fewer votes for that one sample).
-The offline `test`/`test_full` profiles explicitly set
-`skip_reference_genome_fetch = true` to stay fast/deterministic/network-free,
-since - unlike the species-ID databases - this stage does real I/O rather
-than using a bundled test database.
+**Fetching is on by default** (`--skip_reference_genome_fetch` defaults to
+`false`) - the planned deployment environments have network access. A
+per-accession fetch failure doesn't fail the run: `conf/modules.config` gives
+`FETCH_REFERENCE_GENOME` a retry-twice-then-ignore `errorStrategy`, and that
+sample simply has no reference (QUAST runs reference-free, and the genome-size
+hint falls back to the taxid table). The offline `test`/`test_full` profiles
+set `skip_reference_genome_fetch = true`; local FASTA paths in the samplesheet
+are used either way.
 
-Verified manually against `-profile test_full,dev,docker` (with
-`--skip_reference_genome_fetch=false --reference_genome_cache_dir <dir>`, via
-`-params-file` since Nextflow's CLI doesn't reliably coerce
-`--flag=false`/`--flag false` to boolean for schema-validated params): all 4
-samples correctly resolve with full 3/3 consensus, exactly 3 (not 4) genomes
-get fetched since the two SARS-CoV-2 samples share one accession, and a second
-run against the same cache directory skips `FETCH_REFERENCE_GENOME` entirely
-(`[skipping] Stored process`) rather than re-fetching.
-
-### Library type, platform-unified (alignment-based)
-
-`LIBRARY_TYPE_ALIGNED` (`modules/local/library_type_aligned/`,
-`bin/classify_library_type_aligned.awk`) closes the Nanopore gap left by
-`LIBRARY_TYPE` above: it classifies **both** platforms by aligning reads to
-the reference genome fetched by the stage above and tracking a streaming
-**index of dispersion (variance/mean) of per-base alignment depth**.
-Amplicon libraries repeatedly re-sequence the same small set of tiling
-primer targets, producing wildly uneven depth; shotgun libraries sample
-depth close to uniformly (a Poisson process, index of dispersion ~1).
-
-The statistic updates as reads stream in (an awk script consuming SAM
-records piped directly from `minimap2`, so nothing is written to disk or
-re-read), and a confident amplicon verdict stops the alignment early rather
-than waiting for the whole input - `minimap2` gets `SIGPIPE` when the awk
-script exits, which is why the module scopes `set +o pipefail` around just
-that one pipe (the pipeline-wide `pipefail` default elsewhere is untouched).
-Stopping is one-sided: shotgun requires exhausting the read stream (or a
-`max_reads` cap) to confirm the *absence* of the amplicon signal, matching
-the observed asymmetry between the two - amplicon gives a fast, distinctive
-signal; shotgun is "no signal", which needs more data to be sure of.
-
-**This design point wasn't the first one tried.** An earlier version
-reformulated the same statistic as a per-read Bernoulli sequential
-probability ratio test ("did this read hit an already-covered reference bin,
-or a new one?"), specifically so it could run in `awk` without needing
-gamma/special functions. That discretization didn't survive contact with
-real data, once tested against deeper, more representative samples than the
-tiny committed fixtures (see "Dev-only sample datasets" below): fixing a
-false amplicon call on real long-read bacterial shotgun data (chance bin
-collisions early in the stream, a birthday-paradox effect) required
-coarsening the bins, which then broke detection on real SARS-CoV-2 amplicon
-tiling data (whose ~90 distinct amplicons span most of a coarse bin grid, so
-"new bin" events - genuine tiling behaviour - looked like evidence *against*
-amplicon). Tracking actual depth directly avoids that tension.
-
-**Validated against all 4 real Illumina/Nanopore samples in
-`tests/data/real/`**, run through the full pipeline
-(`-profile test_full,dev,docker`, `--skip_reference_genome_fetch=false`):
-
-| Sample | Platform | Verdict | Index of dispersion | Method |
-|---|---|---|---|---|
-| `ECOLI_WGS` | Illumina | shotgun | 1.01 | `eof` |
-| `KPNEUMONIAE_WGS` | Illumina | shotgun | 1.01 | `eof` |
-| `SARS2_AMPLICON_ILLUMINA` | Illumina | amplicon | 2.51 | `eof`/`threshold_stop` |
-| `SARS2_AMPLICON_ONT` | **Nanopore** | **amplicon** | 2.5 | `threshold_stop` |
-
-`SARS2_AMPLICON_ONT` is the win this whole stage exists for - the first
-confident, non-`not_classified` verdict on a real Nanopore sample anywhere in
-this pipeline.
-
-**Known limitation, found (not assumed) via the deeper dev datasets**: real
-bacterial WGS shotgun data at realistic low/modest depth can show index of
-dispersion elevated into the amplicon range, purely from genome repeat
-structure (rRNA operons, IS elements - common in most bacterial genomes)
-concentrating coverage onto one representative copy while the rest of the
-genome stays sparse - not an artifact of this implementation, since it
-reproduces identically with the plain batch `samtools depth -a`
-variance/mean on the same alignment. Confirmed on our real ONT bacterial
-shotgun dev sample (`KPNEUMONIAE_WGS_ONT_DEV`, ~1.5x mean depth): index of
-dispersion 2.5-4.8 depending on how much of the stream is used, solidly
-inside the amplicon range, despite being genuine shotgun sequencing. Not
-fixable by threshold tuning alone (genuine amplicon and this artifact
-overlap). Accepted as a documented caveat for now, same honest-caveats spirit
-as the rest of this project - worth revisiting (e.g. masking known repeat
-regions before computing the statistic) if it proves to be a problem in
-practice.
-
-**On by default, off whenever reference-genome fetch is off**
-(`--skip_reference_genome_fetch`, default `false`) - this stage consumes that
-one's output directly rather than introducing its own flag. Collected into
-`${outdir}/library_type/library_type_aligned_summary.tsv`.
-
-### Library type, reference-free (read clustering)
-
-`LIBRARY_TYPE_CLUSTER` (`modules/local/read_overlap/`,
-`modules/local/library_type_cluster/`, `bin/classify_library_type_cluster.py`)
-is a second, independent take on the same question, evaluated in parallel
-rather than as a replacement for the two approaches above (see "Testing
-strategy" below for why several approaches are being kept side by side for
-now). Instead of aligning to a fetched reference genome, it clusters reads
-against **each other**: `READ_OVERLAP` runs an all-vs-all minimap2 self
-alignment (`ava-ont` for Nanopore, `sr` for Illumina - only one file per
-fragment, R1 for paired-end), and `classify_library_type_cluster.py` unions
-reads into clusters wherever an overlap passes an identity/coverage
-threshold (0.95/0.8 for Illumina, 0.85/0.7 for Nanopore - minimap2's own
-preset tuning handles the different error profiles, so these don't need to
-be as finely tuned as they might look). The summary statistic is the
-effective number of clusters (inverse Simpson index) as a fraction of total
-reads - low means a few big clusters dominate (amplicon); high means reads
-mostly don't cluster with anything (shotgun).
-
-Being reference-free is a real advantage: it needs no species-ID/
-reference-fetch dependency, so it runs by default in every profile,
-including the plain `test` profile, with no network dependency
-(`--skip_library_type_cluster` to turn it off). It also sidesteps the
-specific reference-genome-repeat-structure confound found while validating
-`LIBRARY_TYPE_ALIGNED` above, since there's no reference to have repeats in.
-
-**Validated against all 4 real Illumina/Nanopore samples in
-`tests/data/real/`, plus the deeper dev datasets (see below) - all 8/8
-correct** on first pass, including `KPNEUMONIAE_WGS_ONT_DEV` (the case that
-broke the alignment-based approach).
-
-**Known limitation, found (not assumed) while testing on realistic,
-QC'd data rather than raw reads**: running this on `KPNEUMONIAE_WGS_ONT_DEV`
-*after* `FASTPLONG` trimming (i.e. as the pipeline actually feeds it, not the
-raw download) flips the verdict to `amplicon`. Traced to `FASTPLONG`'s own
-quality/adapter trimming, not `DEHOST` (this sample has no host spike-in):
-untrimmed, noisy read ends drag pairwise identity below threshold for reads
-that come from the same real genome repeat (rRNA operons etc. - the same
-repeat structure implicated in the `LIBRARY_TYPE_ALIGNED` caveat); trimmed to
-their higher-confidence core, those reads become similar enough to cluster.
-This is the *same underlying confound* (bacterial genome repeat content)
-independently defeating a second, unrelated detection approach once
-realistic post-QC data is used. Testing on raw, untrimmed reads to sidestep
-this isn't a real fix - nothing stops a user from feeding the pipeline
-already-trimmed reads, so the pipeline's actual input (post-QC) is the
-correct thing to validate against regardless. Accepted as a documented
-caveat, same as the analogous one above; a more thorough fix (e.g. masking
-known repeat regions) is a bigger undertaking than this evaluation warrants
-right now.
-
-Collected into `${outdir}/library_type/library_type_cluster.tsv`.
-
-### Library type, aligned read-position pileup
-
-`LIBRARY_TYPE_PILEUP` (`modules/local/align_reads/`,
-`modules/local/library_type_pileup/`, `bin/classify_library_type_pileup.py`)
-is a third approach, going back to reasoning from first principles about what
-actually distinguishes the two library types structurally: amplicon
-libraries repeatedly re-sequence the same PCR product, so most reads/
-fragments pile up at a small number of essentially fixed *aligned* start/end
-coordinates (the primer sites); shotgun libraries fragment DNA close to
-randomly, so two independent fragments sharing both a start **and** end
-coordinate is rare. This is exactly the same positional signature real
-duplicate-marking tools (Picard/`samtools markdup`) use to flag PCR/optical
-duplicates - the difference here is that for amplicon libraries, this
-"duplication rate" isn't a side-effect to police, it's most of the data.
-
-`ALIGN_READS` aligns to the fetched reference (same dependency as
-`LIBRARY_TYPE_ALIGNED`) and writes plain-text SAM (not BAM - kept parseable
-by stdlib-only Python, no samtools/pysam needed in that container).
-`classify_library_type_pileup.py` groups fragments by aligned coordinates via
-**single-linkage chaining** (sort positions, merge consecutive ones within a
-tolerance) rather than rounding to a fixed grid - a fixed grid can split one
-true pileup in two when its spread straddles a grid boundary, which is
-exactly what happened during development with real data (a few bases of
-Nanopore primer-trim slop split what should have been one large pileup
-across grid cells). For paired-end fragments, both the start and end
-coordinate must match (within tolerance) to share a signature; for
-single-end long reads the end coordinate uses a much looser tolerance (100bp
-vs. 15bp for the start) since it's noisier (variable soft-clipping, no mate
-to cross-check against) - but it still matters: requiring only a shared
-start let the same bacterial genome repeat structure above masquerade as an
-amplicon pileup during development, since reads from different genomic
-copies of a real repeat can genuinely start near each other by chance. The
-summary statistic is the same effective-number-of-signatures fraction used
-by `LIBRARY_TYPE_CLUSTER`.
-
-**Validated against all 4 real Illumina/Nanopore samples plus the deeper dev
-datasets - 8/8 correct**, including `KPNEUMONIAE_WGS_ONT_DEV` **after**
-`FASTPLONG` trimming (unlike `LIBRARY_TYPE_CLUSTER`, this approach doesn't
-regress on the post-QC reads - if anything the verdict comes out more
-clearly separated on trimmed reads than raw). This is currently the only one
-of the three alignment/clustering-based approaches with no known failure
-case against the test data gathered so far.
-
-On by default, off whenever reference-genome fetch is off, same as
-`LIBRARY_TYPE_ALIGNED`. Collected into
-`${outdir}/library_type/library_type_pileup_summary.tsv`.
-
-### Library-type consensus
-
-`LIBRARY_TYPE_CONSENSUS_ANALYSIS` (`subworkflows/local/library_type_consensus.nf`,
-`modules/local/library_type_consensus/`, `bin/library_type_consensus.py`) fuses
-the (up to 4) verdicts above into one consensus call per sample, and is what
-now sets `meta.library_type` for downstream stages to gate on - previously
-only `LIBRARY_TYPE_CLUSTER`'s own verdict was tagged, leaving the other three
-methods as comparison-only outputs nobody consumed.
-
-**Rule**: majority vote among whichever methods produced a real verdict
-(`amplicon`/`shotgun`) for a given sample - a method that reported
-`not_classified`/`inconclusive` doesn't count as a vote either way, the same
-filter idea `select_reference_accession.py` already uses for "no hit" tools.
-Ties (and the trivial "exactly one method ran" case) are broken by a fixed,
-**provisional** fallback priority: `pileup` > `aligned` > `cluster` >
-`fastp_json` - based on the empirical picture above: `LIBRARY_TYPE_PILEUP` is
-currently the only one of the four with no known failure case;
-`LIBRARY_TYPE_ALIGNED` and `LIBRARY_TYPE_CLUSTER` share the same
-bacterial-genome-repeat-structure confound; `LIBRARY_TYPE` (fastp JSON) is
-Illumina-only and validated on the fewest samples. This ordering is expected
-to be revisited once more real validation data
-(`data/dev_samples/`, `data/dev_metagenomic_samples/`) shows whether any one
-or two methods are consistently correct on their own, rather than needing a
-full vote.
-
-Since reference-genome fetch is now on by default (see above),
-`LIBRARY_TYPE_ALIGNED`/`LIBRARY_TYPE_PILEUP` typically run too, so this vote
-is usually a full 4-way vote rather than the 1-2 votes (`LIBRARY_TYPE_CLUSTER`
-alone for Nanopore; plus `LIBRARY_TYPE` for Illumina) available with fetch
-off. A sample with zero methods able to classify it (e.g. every method
-skipped) gets verdict `no_data` rather than disappearing from the pipeline.
-Collected into `${outdir}/library_type/library_type_consensus_summary.tsv`;
-the `method` column records `majority(n/total)` (a single vote is always its
-own trivial majority), `tie_break:<method>`, or `no_data`.
-
-### Why four approaches are being kept side by side
-
-`LIBRARY_TYPE`, `LIBRARY_TYPE_ALIGNED`, `LIBRARY_TYPE_CLUSTER`, and
-`LIBRARY_TYPE_PILEUP` are deliberately being accumulated in the pipeline
-rather than replacing each other as each new one is built - the shared test
-data so far (4 real fixtures + 4 dev samples) is small enough that "8/8
-correct" doesn't yet distinguish a robust method from one that's simply
-gotten lucky, especially given two of the four already turned out to have a
-real, reproducible failure mode on the *same* difficult sample. The plan is
-to run all of them against substantially more real data before deciding
-whether to keep one, keep several as cross-checks, or retire any.
-`LIBRARY_TYPE_CONSENSUS_ANALYSIS` above means `meta.library_type` is already
-populated pipeline-wide from a real vote in the meantime, without needing to
-prune any method first.
+**Validated** with `test_full`'s reads plus assembly and fetch turned on (via
+`-params-file`, since Nextflow's CLI doesn't reliably coerce `--flag false` to
+boolean for schema-validated params): a *K. pneumoniae* isolate with a
+`match` fetches `GCF_058435815.1`, its length (5,489,631 bp) becomes the
+genome-size hint, and QUAST runs with `-r`.
 
 #### Dev-only sample datasets
 
-Four deeper, more representative real samples than the tiny fixtures
-above - not committed (`data/dev_samples/`, gitignored) - were used to
-develop and validate these alignment/clustering-based stages, one per
-platform × library-type combination, including the first real Nanopore
-bacterial WGS shotgun sample used anywhere in this project
-(`KPNEUMONIAE_WGS_ONT_DEV`, the sample that surfaced the repeat-region
-caveats above). See `data/dev_samples/README.md` for the SRA accessions and
+Deeper, more representative real samples than the tiny fixtures above - not
+committed (`data/dev_samples/`, `data/dev_metagenomic_samples/`, gitignored) -
+one per platform × library-type combination, plus real shotgun-metagenomic
+and 16S samples. See the `README.md` in each for the SRA accessions and
 regeneration recipe (same `download_fastq` + `rasusa reads -n <N> -s 42`
 approach as `tests/data/real/`).
-
-A second, similarly gitignored set (`data/dev_metagenomic_samples/`) covers
-real shotgun-metagenomic and 16S rRNA amplicon samples (Illumina + Nanopore
-each) - used for the species-composition work above. See
-`data/dev_metagenomic_samples/README.md`.
-
-### 16S rRNA amplicon detection (gated, alignment-based)
-
-`SIXTEEN_S_DETECTION` (`subworkflows/local/sixteen_s_detection.nf`,
-`modules/local/subsample_reads_head/`, `modules/local/classify_16s_amplicon/`,
-`bin/classify_16s_amplicon.py`) answers the specific question the species
-composition section above left open: for a sample the whole-genome
-species-ID databases can't explain (`meta.composition == 'inconclusive'`),
-is that because it's 16S/marker-gene data, or something else entirely
-(insufficient database coverage, a novel organism, etc)?
-
-**Gating**: this stage only runs for reads whose `meta.composition` was
-already tagged `inconclusive` by `SPECIES_COMPOSITION_ANALYSIS` earlier in
-the pipeline - a sample confidently called `pure_culture` or `metagenomic`
-from whole-genome k-mer content doesn't need a 16S-specific check. An
-earlier design also required `meta.library_type == 'amplicon'` before
-running this check, but that was dropped: `LIBRARY_TYPE_CLUSTER` got a real
-16S Nanopore sample's library-type call wrong during validation, so gating
-on it would have skipped the 16S check for a sample that actually needed it.
-Gating on `composition` alone is more conservative and doesn't depend on a
-different classifier being right first.
-
-**Why alignment, not k-mer/minhash, specifically for 16S**: the same
-sourmash/mash machinery used for whole-genome species-ID was tried first
-against a dedicated 16S database, at two different k-mer sizes (k=21,
-scaled=1000 and k=31, scaled=200) - both recovered very little (11.2%/3.7%)
-and the organisms that did match were implausible (marine/extremophile taxa
-for a real gut sample). This isn't a tuning problem: 16S carries long,
-near-universally-conserved regions (the property that makes it useful as a
-universal marker in the first place), so short k-mers spuriously match many
-unrelated references regardless of size. Full alignment doesn't have this
-problem - identity and coverage are computed over the whole read, not a
-k-mer at a time - so this stage aligns a read subsample to a dedicated 16S
-database with `ALIGN_READS` (the same module `LIBRARY_TYPE_PILEUP` uses,
-reused as-is since it already accepts any reference FASTA) and computes,
-per read, identity from the SAM `NM:i:` tag over the CIGAR alignment-block
-length, and coverage as reference-consumed length over read length.
-`classify_16s_amplicon.py` reports the fraction of reads clearing both bars
-(default 90%/80% identity, 80%/70% coverage for Illumina/Nanopore) against
-`--min-passed-frac` (default 50%) for the verdict. Reads with zero
-alignments at all count in the denominator, not just mapped ones - a read
-that aligns to nothing in the 16S database is itself evidence against 16S,
-not an ambiguous non-answer.
-
-`SUBSAMPLE_READS_HEAD` takes the first N reads (`--sixteen_s_max_reads`,
-default 500) with plain `head`, not a random subsample - a coarse yes/no
-check doesn't need one, and this avoids adding a new dependency just for
-subsampling.
-
-**Reference database**: NCBI's 16S ribosomal RNA (Bacteria and Archaea type
-strains) BLAST DB (BioProject PRJNA33175) - confirmed small (68MB
-compressed, 27,648 sequences) and actively maintained before committing to
-it. Not bundled with the pipeline (`--sixteen_s_db`, a FASTA); a dev-only
-copy extracted via `blastdbcmd` lives at `data/dev_16s_db/` (gitignored,
-~270MB uncompressed) with a `README.md` covering provenance and the
-k-mer/alignment finding above. Species-level taxonomy was deliberately not
-resolved for all 27,648 entries - this check only needs "16S or not", not
-which organism, and can be revisited if the database is ever used for
-anything more granular.
-
-**Validated against all 4 real dev metagenomic samples**, both standalone
-(direct `minimap2`+script, full read set) and through the full pipeline
-(subsampled, post-fastp/dehost reads):
-
-| Sample | Expected | Standalone passed_frac | Pipeline passed_frac | Verdict |
-|---|---|---|---|---|
-| `GUT_16S_ONT_DEV` | 16S | 88.0% | 95.6% | `16S_amplicon` (correct) |
-| `GUT_16S_ILLUMINA_DEV` | 16S | 90.6% | 51.6% | `16S_amplicon` (correct, but a much thinner margin - see below) |
-| `GUT_SHOTGUN_ILLUMINA_DEV` | not 16S | 0% | 0% | `other` (correct) |
-| `GUT_SHOTGUN_ONT_DEV` | not 16S | 0% | n/a | not reached - `SPECIES_COMPOSITION_ANALYSIS` correctly called this sample `metagenomic` (real database coverage), so the composition gate skipped the 16S check entirely |
-
-`GUT_16S_ILLUMINA_DEV`'s pipeline-run margin (51.6%) is notably thinner than
-its standalone one (90.6%) - both clear the 50% bar and land on the correct
-verdict, but the gap is large enough to flag rather than ignore. The
-standalone check ran the sample's full untrimmed read set directly; the
-pipeline run feeds `SUBSAMPLE_READS_HEAD` the first 500 read pairs *after*
-`FASTP` and `DEHOST`, which may simply differ in composition from the full
-set. Worth re-checking once more real 16S samples are available, rather
-than concluding anything from a single data point.
-
-Off by default (`--skip_sixteen_s_detection`, default `true`) - like
-reference-genome fetch, it needs an external resource (`--sixteen_s_db`) not
-bundled in any test profile. Collected into
-`${outdir}/library_type/sixteen_s_detection_summary.tsv`. On a positive or
-negative call, the sample's `meta.sixteen_s` tag is set to the verdict for
-any downstream stage to use.
 
 ### Draft assembly + assembly QC
 
 `ASSEMBLY_ANALYSIS` (`subworkflows/local/assembly.nf`) implements the
-assembly stages. It runs **only for pure-culture shotgun libraries** - gated
-on `meta.library_type == 'shotgun' && meta.composition == 'pure_culture'`
-(both tags already set upstream) - so amplicon, metagenomic, and
-inconclusive/`no_data`-composition samples are never assembled.
+assembly stages. It runs **only for `isolate` samples** (the samplesheet's
+`sample_type`), so amplicon and metagenomic samples are never assembled.
+Single-end Illumina isolates are skipped with a warning, since Shovill needs
+paired reads.
 
 **Two dedicated single-platform assemblers, no hybrid.** The samplesheet is
 one platform per sample, so there's no way to pair an Illumina and an ONT
@@ -676,10 +262,10 @@ the shallow dev fixtures - Dragonflye produced a catastrophic ~1kb estimate on
 a shallow ONT subsample, and Shovill's `kmc` estimation step segfaulted on
 ~1x Illumina data. `GENOME_SIZE` (`modules/local/genome_size/`,
 `bin/resolve_genome_size.py`) resolves a per-sample `--gsize` up front instead,
-best-available source first: (1) the actual length of the **fetched reference
-genome** (exact; available whenever reference-genome fetch ran), (2) a coarse
-**taxid → size lookup** (`assets/genome_sizes.tsv`, keyed on the species-ID
-consensus taxid) for when no reference was fetched, or (3)
+best-available source first: (1) the samplesheet's **`genome_size`** column,
+(2) the actual length of the sample's **reference genome** (see above), (3) a
+coarse **taxid → size lookup** (`assets/genome_sizes.tsv`, keyed on the
+species taxid of sylph's top hit) for when there's no reference, or (4)
 `--default_genome_size` (a generic backstop, default 5 Mb). The resolved value
 is folded into `meta.genome_size` and passed to both assemblers via
 `ext.args` (`conf/modules.config`). Assembly quality is insensitive to this
@@ -691,13 +277,13 @@ written to `${outdir}/assembly/<sample>/<sample>.genome_size.txt`.
 **QC on the resulting assembly** is platform-agnostic:
 
 - [`QUAST`](https://github.com/ablab/quast) for contiguity (#contigs, total
-  length, largest contig, N50) plus, **when a reference genome was fetched for
-  the sample**, reference-based metrics (genome fraction, NGA50, misassemblies,
-  mismatch/indel rates). Each assembly is paired with the reference fetched for
-  its consensus species (joined by `meta.id`) and `multiMap`-ed into QUAST's
+  length, largest contig, N50) plus, **when the sample has a reference
+  genome**, reference-based metrics (genome fraction, NGA50, misassemblies,
+  mismatch/indel rates). Each assembly is paired with its sample's reference
+  (joined by `meta.id`) and `multiMap`-ed into QUAST's
   three inputs, so QUAST runs reference-based per-sample where a reference
   exists and reference-free otherwise - a mix is handled in one call.
-  **Interpretation caveat:** the reference is the consensus *species'*
+  **Interpretation caveat:** the reference is usually a species
   representative genome, not the sample's own strain, so **genome fraction and
   NGA50 are robust, but the misassembly and mismatch/indel counts also reflect
   real strain divergence (SNPs, indels, plasmid presence/absence,
@@ -708,8 +294,7 @@ written to `${outdir}/assembly/<sample>/<sample>.genome_size.txt`.
   inviting over-interpretation in the headline table.
 - [`CheckM2`](https://github.com/chklovski/CheckM2) for completeness +
   contamination. **Only runs when `--checkm2_db` is provided** - its DIAMOND
-  database is a large external download, so it gets the same opt-in treatment
-  as `--reference_genome_cache_dir` / `--sixteen_s_db`. Without it, the
+  database is a large external download, so it's opt-in. Without it, the
   completeness/contamination columns are `NA` and only QUAST metrics appear.
 
 `bin/parse_assembly_qc.py` + the `ASSEMBLY_SUMMARY` module normalise each
@@ -732,14 +317,13 @@ reached the gate - and the run still completes.
 **On by default** (`--skip_assembly`, default `false`) - unlike reference-genome
 fetch, assembly itself needs no external database (Dragonflye bundles its Medaka
 model). But **both `test` and `test_full` explicitly set `skip_assembly = true`**:
-the synthetic `test` fixtures never reach the gate anyway (they get
-`composition = no_data`, not `pure_culture`), and `test_full`'s reads are
-downsampled to ~1200 read pairs - fine for the read-level analyses but far too
+the synthetic `test` fixtures wouldn't assemble meaningfully, and
+`test_full`'s reads are downsampled to ~1200 read pairs - fine for the read-level analyses but far too
 shallow to assemble meaningfully. Assembly is validated instead against the
-deeper `data/dev_samples/` pure-culture isolates (see below).
+deeper `data/dev_samples/` isolates (see above).
 
 **Validated against `data/dev_samples/` isolates** through the full pipeline
-(`-profile dev,docker`, dev species DB, `--skip_assembly=false`): the ONT path
+(`-profile dev,docker`, dev species DB, assembly on): the ONT path
 (Dragonflye) on `SAUREUS_WGS_ONT_DEV` / `LMONOCYTOGENES_WGS_ONT_DEV` (~5k reads
 ≈ ~9x, enough for a Flye/Medaka draft) and the Illumina path (Shovill) on
 `SAUREUS_WGS_ILLUMINA_DEV`. **Known limitation (same honest-caveats spirit as
@@ -755,19 +339,19 @@ dedicated deeper fixture. The ONT isolates are adequate as-is.
 `SAMPLE_SUMMARY` (`modules/local/sample_summary/`,
 `bin/build_sample_summary.py`) builds one CSV with one row per sample -
 `${outdir}/sample_summary.csv` - so a reviewer can see the main verdict/metric
-from every stage above without opening eight different TSVs. It doesn't
+from every stage above without opening several different TSVs. It doesn't
 replace those TSVs (which keep every field for each stage); it's a single
 at-a-glance table across stages, deliberately kept to one or two headline
 columns per stage (verdict plus one supporting metric) rather than every
 field - see the header row in `bin/build_sample_summary.py` for the exact
 columns.
 
-The sample manifest emitted by `READ_QC_AND_DEHOSTING` (sample, platform) is
-the only required input and anchors which rows exist; every other stage's
+The sample manifest emitted by `READ_QC_AND_DEHOSTING` (sample, platform,
+sample_type, expected_species - straight from the samplesheet) is the only
+required input and anchors which rows exist; every other stage's
 summary TSV is optional. If a stage was skipped (by flag, e.g.
 `--skip_reference_genome_fetch`) or simply produced nothing for this run
-(e.g. no sample needed the 16S check because none had inconclusive
-composition), its columns are just `NA` for the affected rows - the row
+(e.g. no isolates in this run, so no assemblies), its columns are just `NA` for the affected rows - the row
 itself is never dropped.
 
 **A real, non-obvious bug found while building this**: `collectFile()`
@@ -776,25 +360,22 @@ is completely empty, rather than falling back to a header-only file. This
 first surfaced as `SAMPLE_SUMMARY` silently running **zero times** (no
 error, just absent from the process list) whenever any upstream stage's
 collated TSV happened to have zero rows for a given run - which is exactly
-what happens under the plain `test` profile, where sourmash gather
-correctly finds no hit for the tiny synthetic fixtures against the real
+what happened under the plain `test` profile when a species-ID tool
+correctly found no hit for the tiny synthetic fixtures against the real
 species DB (expected behaviour, not a bug in that stage). Every conditional
 summary channel now ends in `.ifEmpty([])`, falling back to the same "stage
 produced nothing" placeholder used when a stage is toggled off - documented
 inline at each site (see `subworkflows/local/species_id.nf` for the
-first occurrence). This is the third time in this project a channel has
-gone silently empty rather than erroring (see the whole-meta-map-join
-footgun in the "Species-ID consensus + reference genome fetch/cache" section
-above, and the earlier alignment-based library-type work) - worth remembering
-as a recurring
-Nextflow failure mode: **missing output shows up as "nothing happened," not
+first occurrence). The same goes for joining two `tuple(meta, ...)`
+channels on the whole `meta` map: meta maps captured at different points in
+the pipeline needn't be identical, so such a join silently matches nothing -
+always join by `meta.id`. Worth remembering as a recurring Nextflow failure
+mode: **missing output shows up as "nothing happened," not
 an error**.
 
-**Validated** against both `test` (2 synthetic samples, only a few stages
-producing real data) and `test_full` (4 real samples, every column
-populated and matching known ground truth - e.g. `ECOLI_WGS` correctly
-`pure_culture` with all three species-ID tools agreeing on *Escherichia
-coli*).
+**Validated** against both `test` (2 synthetic samples, species check
+`no_hit` as expected) and `test_full` (4 real samples, all `match`ing their
+`expected_species`).
 
 ## Testing strategy
 

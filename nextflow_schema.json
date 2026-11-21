@@ -226,36 +226,14 @@
             }
         },
         "species_id_options": {
-            "title": "Species identification and library type options",
+            "title": "Species ID, reference and assembly options",
             "type": "object",
             "fa_icon": "fas fa-microscope",
-            "description": "Options for species-identification tools (mash/sourmash/sylph, all under evaluation) and amplicon-vs-shotgun library type classification.",
+            "description": "Species identification (sylph) checked against the samplesheet's expected_species, per-isolate reference genome, and draft assembly of isolates.",
             "properties": {
-                "skip_mash": {
+                "skip_species_id": {
                     "type": "boolean",
-                    "description": "Skip Mash-based species identification.",
-                    "fa_icon": "fas fa-forward"
-                },
-                "mash_db": {
-                    "type": "string",
-                    "format": "file-path",
-                    "description": "Mash sketch (.msh) containing one or more reference genome sketches to compare reads against. Required unless --skip_mash is set.",
-                    "fa_icon": "fas fa-dna"
-                },
-                "skip_sourmash": {
-                    "type": "boolean",
-                    "description": "Skip Sourmash-based species identification.",
-                    "fa_icon": "fas fa-forward"
-                },
-                "sourmash_db": {
-                    "type": "string",
-                    "format": "file-path",
-                    "description": "Sourmash signature collection (.sig/.sig.zip) of reference genomes to compare reads against. Required unless --skip_sourmash is set.",
-                    "fa_icon": "fas fa-dna"
-                },
-                "skip_sylph": {
-                    "type": "boolean",
-                    "description": "Skip Sylph-based species identification.",
+                    "description": "Skip species identification (sylph) and the check against the samplesheet's expected_species.",
                     "fa_icon": "fas fa-forward"
                 },
                 "sylph_db": {
@@ -267,33 +245,12 @@
                 "species_id_manifest": {
                     "type": "string",
                     "format": "file-path",
-                    "description": "Optional CSV (accession,organism,...) mapping reference genome accessions to organism names, for readable species-ID summary output. Without it, the summary reports raw accessions instead of organism names.",
+                    "description": "Optional CSV (accession,organism,...,taxid,species_taxid,species_name) mapping reference genome accessions to taxonomy. Used to match sylph hits against the samplesheet's expected_species; without it, matching falls back to the hit's FASTA header.",
                     "fa_icon": "fas fa-table"
-                },
-                "skip_species_composition": {
-                    "type": "boolean",
-                    "description": "Skip pure-culture-vs-metagenomic detection from species-ID composition breadth. Needs both mash and sourmash enabled.",
-                    "fa_icon": "fas fa-forward"
-                },
-                "species_composition_ani_threshold": {
-                    "type": "number",
-                    "default": 95.0,
-                    "description": "ANI percent at/above which reference genomes are collapsed into one cluster before counting composition breadth (the conventional operational species boundary).",
-                    "fa_icon": "fas fa-percent"
-                },
-                "skip_library_type": {
-                    "type": "boolean",
-                    "description": "Skip amplicon-vs-shotgun library type classification.",
-                    "fa_icon": "fas fa-forward"
-                },
-                "skip_library_type_cluster": {
-                    "type": "boolean",
-                    "description": "Skip reference-free (read clustering) amplicon-vs-shotgun library type classification. No network/reference dependency, so on by default.",
-                    "fa_icon": "fas fa-forward"
                 },
                 "skip_reference_genome_fetch": {
                     "type": "boolean",
-                    "description": "Skip fetching/caching a reference genome per sample. Off by default (i.e. this stage runs) since planned deployment environments have network access; a fetch failure for one accession retries then degrades gracefully rather than failing the run (see conf/modules.config). Offline test profiles (test/test_full) explicitly set this to true.",
+                    "description": "Skip fetching reference genome accessions from NCBI. Off by default since planned deployment environments have network access; a fetch failure retries then degrades gracefully (see conf/modules.config). Local FASTA paths in the samplesheet's reference column are used either way. Offline test profiles set this to true.",
                     "fa_icon": "fas fa-forward"
                 },
                 "reference_genome_cache_dir": {
@@ -301,23 +258,6 @@
                     "format": "directory-path",
                     "description": "Directory to cache fetched reference genomes in, keyed by accession (reused across runs). Defaults to a reference_genome_cache directory under the launch directory; override to a shared, persistent location. Only used unless --skip_reference_genome_fetch is set.",
                     "fa_icon": "fas fa-folder-open"
-                },
-                "skip_sixteen_s_detection": {
-                    "type": "boolean",
-                    "description": "Skip 16S rRNA amplicon detection. On by default (i.e. this stage is off), since it needs an external 16S reference FASTA not bundled in any test profile, unlike the other species-ID DBs. Only runs for samples whose species-composition breadth came back inconclusive - see docs/testing.md.",
-                    "fa_icon": "fas fa-forward"
-                },
-                "sixteen_s_db": {
-                    "type": "string",
-                    "format": "file-path",
-                    "description": "16S rRNA reference FASTA (e.g. NCBI's 16S_ribosomal_RNA BLAST DB, extracted to plain FASTA). Required unless --skip_sixteen_s_detection is set.",
-                    "fa_icon": "fas fa-dna"
-                },
-                "sixteen_s_max_reads": {
-                    "type": "integer",
-                    "default": 500,
-                    "description": "Number of reads subsampled before aligning against the 16S database - a coarse yes/no check, not a composition breakdown, so it doesn't need many reads.",
-                    "fa_icon": "fas fa-sort-numeric-down"
                 },
                 "skip_assembly": {
                     "type": "boolean",
@@ -333,7 +273,7 @@
                 "default_genome_size": {
                     "type": "integer",
                     "default": 5000000,
-                    "description": "Backstop genome-size hint (bp) passed as --gsize to the assemblers when neither a fetched reference genome nor an assets/genome_sizes.tsv taxid entry is available for a sample. A ballpark is sufficient - assembly quality is insensitive to this within ~2x.",
+                    "description": "Backstop genome-size hint (bp) passed as --gsize to the assemblers when a sample has no samplesheet genome_size, no reference genome, and no assets/genome_sizes.tsv taxid entry. A ballpark is sufficient - assembly quality is insensitive to this within ~2x.",
                     "fa_icon": "fas fa-ruler-horizontal"
                 }
             }

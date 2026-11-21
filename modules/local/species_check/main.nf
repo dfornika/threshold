@@ -1,4 +1,4 @@
-process SPECIES_COMPOSITION {
+process SPECIES_CHECK {
     tag "$meta.id"
     label 'process_single'
 
@@ -8,12 +8,11 @@ process SPECIES_COMPOSITION {
         'quay.io/biocontainers/python:3.12' }"
 
     input:
-    tuple val(meta), path(gather_csv)   // from SOURMASH_GATHER
-    path clusters                       // from CLUSTER_REFERENCE_GENOMES
-    path manifest, stageAs: 'manifest.csv?'   // optional: accession,organism,... - omit to report bare accessions
+    tuple val(meta), path(profile)
+    path  manifest, stageAs: 'manifest.csv?'   // optional: accession,organism,...,taxid,species_taxid,species_name
 
     output:
-    tuple val(meta), path("*.species_composition.tsv"), emit: result
+    tuple val(meta), path("*.species_check.tsv"), emit: result
 
     when:
     task.ext.when == null || task.ext.when
@@ -21,18 +20,20 @@ process SPECIES_COMPOSITION {
     script:
     def prefix = task.ext.prefix ?: "${meta.id}"
     def manifest_arg = manifest ? "--manifest ${manifest}" : ''
+    def expected = (meta.expected_species ?: '').toString().replace("'", "'\\''")
     """
-    classify_species_composition.py \\
+    check_species.py \\
         --sample ${meta.id} \\
         --platform ${meta.platform} \\
-        --clusters ${clusters} \\
+        --sample-type ${meta.sample_type} \\
+        --expected-species '${expected}' \\
         ${manifest_arg} \\
-        ${gather_csv} > ${prefix}.species_composition.tsv
+        ${profile} > ${prefix}.species_check.tsv
     """
 
     stub:
     def prefix = task.ext.prefix ?: "${meta.id}"
     """
-    printf '%s\\t%s\\tstub\\t0\\tNA\\tNA\\t0\\tNA\\tNA\\tNA\\t-\\n' "${meta.id}" "${meta.platform}" > ${prefix}.species_composition.tsv
+    printf '%s\\t%s\\tstub\\tNA\\tNA\\tNA\\tNA\\tNA\\tNA\\t0\\n' "${meta.id}" "${meta.platform}" > ${prefix}.species_check.tsv
     """
 }

@@ -12,37 +12,13 @@ tools:
 input:
   - - samples:
         type: file
-        description: Sample manifest (sample, platform) - always present, anchors which rows exist regardless of which stages ran
+        description: Sample manifest (sample, platform, sample_type, expected_species) - always present, anchors which rows exist regardless of which stages ran
   - - dehost:
         type: file
         description: Optional. dehost_summary.tsv from READ_QC_AND_DEHOSTING
-  - - library_type:
+  - - species_check:
         type: file
-        description: Optional. library_type.tsv from LIBRARY_TYPE_REFERENCE_FREE
-  - - library_type_cluster:
-        type: file
-        description: Optional. library_type_cluster.tsv from LIBRARY_TYPE_REFERENCE_FREE
-  - - library_type_aligned:
-        type: file
-        description: Optional. library_type_aligned_summary.tsv from ALIGNMENT_BASED_LIBRARY_TYPE
-  - - library_type_pileup:
-        type: file
-        description: Optional. library_type_pileup_summary.tsv from ALIGNMENT_BASED_LIBRARY_TYPE
-  - - library_type_consensus:
-        type: file
-        description: Optional. library_type_consensus_summary.tsv from LIBRARY_TYPE_CONSENSUS_ANALYSIS
-  - - species_id:
-        type: file
-        description: Optional. species_id_summary.tsv from SPECIES_ID
-  - - species_composition:
-        type: file
-        description: Optional. species_composition_summary.tsv from SPECIES_COMPOSITION_ANALYSIS
-  - - species_id_consensus:
-        type: file
-        description: Optional. species_id_consensus_summary.tsv from SPECIES_ID (SELECT_REFERENCE_ACCESSION)
-  - - sixteen_s:
-        type: file
-        description: Optional. sixteen_s_detection_summary.tsv from SIXTEEN_S_DETECTION
+        description: Optional. species_check_summary.tsv from SPECIES_ID
   - - assembly:
         type: file
         description: Optional. assembly_summary.tsv from ASSEMBLY_ANALYSIS
