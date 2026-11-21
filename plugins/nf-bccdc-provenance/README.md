@@ -15,7 +15,9 @@ cd plugins/nf-bccdc-provenance
 ./gradlew install
 ```
 
-That installs it into `~/.nextflow/plugins`, where Nextflow looks by default; set `NXF_PLUGINS_DIR` first to install somewhere else (Nextflow then looks there too). Rerun it after changing the plugin. `./gradlew assemble` just builds the zip (`build/distributions/nf-bccdc-provenance-0.1.0.zip`). CI runs `./gradlew install` before nf-test (`.github/actions/nf-test/action.yml`).
+That installs it into `~/.nextflow/plugins`, where Nextflow looks by default; set `NXF_PLUGINS_DIR` first to install somewhere else (Nextflow then looks there too). Rerun it after changing the plugin. `./gradlew assemble` just builds the zip (`build/distributions/nf-bccdc-provenance-0.1.0.zip`). In CI, a `build-plugin` job builds it once per run (with Gradle's downloads cached between runs) and every test job unpacks that zip into `~/.nextflow/plugins` (`.github/workflows/nf-test.yml`, `.github/actions/nf-test/action.yml`).
+
+The build needs Seqera's Maven repository, but only for Nextflow's own artifacts (`io.nextflow:*`, which aren't on Maven Central) and the `io.seqera` libraries they use. `build.gradle` restricts that repository to those groups: Seqera's repository is an S3 bucket that answers `403 Forbidden` (not 404) for anything it doesn't host, so letting Gradle fall through to it for ordinary libraries turned any Maven Central hiccup into a failed build.
 
 To try a different build of the plugin without editing `nextflow.config`, note that both `-plugins` on the command line and a `plugins {}` block in an extra `-c` config **replace** the pipeline's plugin list rather than adding to it - so repeat the pipeline's own plugins at their pinned versions, e.g. `-plugins nf-schema@2.5.1,nf-prov@1.7.0,nf-bccdc-provenance@0.1.0`. Leaving them out makes Nextflow pull the latest nf-schema, whose API differs, and the run fails.
 

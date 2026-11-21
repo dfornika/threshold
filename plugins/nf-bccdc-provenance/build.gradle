@@ -14,3 +14,20 @@ nextflowPlugin {
         'bccdc.provenance.ProvenanceObserverFactory'
     ]
 }
+
+// The nextflow-plugin Gradle plugin adds three repositories: mavenLocal,
+// Maven Central, then Seqera's (an S3 bucket). Seqera's is needed only for
+// Nextflow's own artifacts (io.nextflow:nextflow, nf-commons, nf-lang, ...),
+// which aren't on Maven Central, and the io.seqera libraries they depend on.
+// Restrict it to those groups: for anything it doesn't host, S3 answers
+// 403 Forbidden rather than 404, which Gradle treats as a hard failure - so a
+// momentary Maven Central hiccup that made Gradle fall through to Seqera for
+// e.g. slf4j failed the whole build (seen in CI).
+repositories.withType(MavenArtifactRepository).matching { repo ->
+    repo.url.toString().contains('maven.seqera.io')
+}.configureEach { repo ->
+    repo.content {
+        includeGroupByRegex(/io\.nextflow(\..+)?/)
+        includeGroupByRegex(/io\.seqera(\..+)?/)
+    }
+}

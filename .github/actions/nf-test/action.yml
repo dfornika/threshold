@@ -25,12 +25,24 @@ runs:
         version: "${{ env.NXF_VERSION }}"
 
     # nextflow.config loads nf-bccdc-provenance, which is built from this repo
-    # and isn't published anywhere, so install it into ~/.nextflow/plugins
-    # before Nextflow looks for it. See plugins/nf-bccdc-provenance/README.md.
+    # and isn't published anywhere. The build-plugin job (nf-test.yml) builds
+    # it once per run; unpack that zip into ~/.nextflow/plugins - what
+    # `./gradlew install` does - before Nextflow looks for it.
+    # See plugins/nf-bccdc-provenance/README.md.
+    - name: Download nf-bccdc-provenance plugin
+      uses: actions/download-artifact@9000827ccba6bdab643e8b6fd33ac0654aef8333 # v8.0.2
+      with:
+        name: nf-bccdc-provenance
+        path: ${{ runner.temp }}/nf-bccdc-provenance
+
     - name: Install nf-bccdc-provenance plugin
       shell: bash
-      working-directory: plugins/nf-bccdc-provenance
-      run: ./gradlew --no-daemon install
+      run: |
+        version=$(cat plugins/nf-bccdc-provenance/VERSION)
+        dest="$HOME/.nextflow/plugins/nf-bccdc-provenance-${version}"
+        mkdir -p "$dest"
+        unzip -q -o "${{ runner.temp }}/nf-bccdc-provenance/nf-bccdc-provenance-${version}.zip" -d "$dest"
+        ls "$dest"
 
     - name: Set up Python
       uses: actions/setup-python@a309ff8b426b58ec0e2a45f0f869d46889d02405 # v6
