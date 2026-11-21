@@ -15,7 +15,10 @@ process FETCH_REFERENCE_GENOME {
     val accession
 
     output:
+    path("${accession}.esummary.xml"), emit: esummary_xml
+    path("${accession}.esummary.json"), emit: esummary_json
     path("${accession}.fasta.gz"), emit: fasta
+    path("${accession}_*_genomic.gff.gz"), emit: gff
     // No versions-topic emit here: storeDir only supports plain `val`/`path`
     // outputs, not `tuple` (which the versions-topic convention used
     // elsewhere in this pipeline requires) - confirmed by Nextflow refusing
@@ -38,6 +41,10 @@ process FETCH_REFERENCE_GENOME {
     // actually works, using the same stable E-utilities protocol NCBI has
     // kept backwards-compatible for decades.
     """
+    esearch -db assembly -query "${accession}" | esummary > ${accession}.esummary.xml
+
+    esearch -db assembly -query "${accession}" | esummary -mode json > ${accession}.esummary.json
+
     esearch -db assembly -query "${accession}[Assembly Accession]" \\
         | elink -target nuccore -name assembly_nuccore_insdc \\
         | efetch -format fasta \\
@@ -47,10 +54,25 @@ process FETCH_REFERENCE_GENOME {
         echo "No sequences retrieved for assembly accession ${accession}" >&2
         exit 1
     fi
+
+    esearch -db assembly -query "${accession}" \\
+        | esummary \\
+        | xtract -pattern DocumentSummary -element FtpPath_RefSeq \\
+        | while read -r ftp_url; do
+              base=\$(basename "\$ftp_url")
+              curl -sSL "\${ftp_url}/\${base}_genomic.gff.gz" -o "\${base}_genomic.gff.gz"
+          done
+
+    if [ ! -s ${accession}*.gff.gz ] || [ \$(zcat ${accession}*.gff.gz | head -c1 | wc -c) -eq 0 ]; then
+        echo "No annotation retrieved for assembly accession ${accession}" >&2
+        exit 1
+    fi
+
     """
 
     stub:
     """
     echo '' | gzip > ${accession}.fasta.gz
+    echo '' | gzip > ${accession}_x_.gff.gz
     """
 }
