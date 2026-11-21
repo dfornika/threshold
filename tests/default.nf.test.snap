@@ -69,8 +69,6 @@
                 "fastqc/SAMPLE_PE_raw_1_fastqc.zip",
                 "fastqc/SAMPLE_PE_raw_2_fastqc.html",
                 "fastqc/SAMPLE_PE_raw_2_fastqc.zip",
-                "host_mini.fasta",
-                "manifest.csv",
                 "multiqc",
                 "multiqc/multiqc_data",
                 "multiqc/multiqc_data/fastp-seq-content-gc-plot_Read_1_After_filtering.txt",
@@ -199,7 +197,6 @@
                 "species_id/SAMPLE_ONT.species_check.tsv",
                 "species_id/SAMPLE_PE.species_check.tsv",
                 "species_id/species_check_summary.tsv",
-                "species_mini.syldb",
                 "sylph",
                 "sylph/SAMPLE_ONT.tsv",
                 "sylph/SAMPLE_PE.tsv"
@@ -218,8 +215,6 @@
                 "SAMPLE_ONT.fastplong.fastq.gz:md5,79c88f89b8fd682992bcbda6b0547a41",
                 "SAMPLE_ONT.fastplong.json:md5,142166c0adc26a273717a11c4243b9f0",
                 "SAMPLE_ONT_final.fastplong.json:md5,f79ea432f4000f7c229fdb11a44ce2c1",
-                "host_mini.fasta:md5,b51f83a804477902d01a805df2de10eb",
-                "manifest.csv:md5,b748502d0315d9caa1fe8cc96da0d405",
                 "fastp-seq-content-gc-plot_Read_1_After_filtering.txt:md5,98a54674db4d2cd52c8a76707a358e90",
                 "fastp-seq-content-gc-plot_Read_1_Before_filtering.txt:md5,98a54674db4d2cd52c8a76707a358e90",
                 "fastp-seq-content-gc-plot_Read_2_After_filtering.txt:md5,9146a78afe601e2fe6f8449bfa3ffa51",
@@ -252,12 +247,11 @@
                 "SAMPLE_ONT.species_check.tsv:md5,cfbf76fd511b563ce4c72c2eb003ff48",
                 "SAMPLE_PE.species_check.tsv:md5,6418a61e057e3e910483e522cda3d1a7",
                 "species_check_summary.tsv:md5,0dde191721202b4c94a04d333120ec6c",
-                "species_mini.syldb:md5,c335884e6d7f181934a1277b72b71683",
                 "SAMPLE_ONT.tsv:md5,a6fed46148a3614a3516c0c26919180f",
                 "SAMPLE_PE.tsv:md5,a6fed46148a3614a3516c0c26919180f"
             ]
         ],
-        "timestamp": "2026-11-21T00:18:12.461828169",
+        "timestamp": "2026-11-21T08:14:00.787415377",
         "meta": {
             "nf-test": "0.9.5",
             "nextflow": "26.04.4"
