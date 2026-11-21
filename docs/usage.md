@@ -220,6 +220,12 @@ See the main [Nextflow documentation](https://www.nextflow.io/docs/latest/config
 
 If you have any questions or issues please send us a message on [Slack](https://nf-co.re/join/slack) on the [`#configs` channel](https://nfcore.slack.com/channels/configs).
 
+### Temporary files (`TMPDIR`)
+
+By default each task gets its own `TMPDIR`: a `tmp/` directory inside its work directory (`--task_tmpdir`, on by default; see `conf/task_tmpdir.config`). Nextflow forwards your shell's `TMPDIR` into Apptainer/Singularity containers but only mounts the task's work directory, so a `TMPDIR` anywhere else (e.g. under your home directory) doesn't exist inside the container, and any tool writing temporary files fails. The work directory is always mounted, sits on the same filesystem as the rest of the run, and is cleaned up with it.
+
+To use your own `TMPDIR` instead, set `task_tmpdir: false` in a `-params-file`, and make sure that path is mounted in the container (e.g. via `apptainer.runOptions = '-B /path/to/tmp'` in a custom config).
+
 ## Running in the background
 
 Nextflow handles job submissions and supervises the running jobs. The Nextflow process must run until the pipeline is finished.
