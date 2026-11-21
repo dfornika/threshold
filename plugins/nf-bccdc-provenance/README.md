@@ -4,30 +4,20 @@ A Nextflow plugin to produce [BCCDC-PHL pipeline provenance](https://github.com/
 
 **Status: spike.** The plugin doesn't write provenance records yet. It records what Nextflow exposes about each task, to check that a plugin can get everything the schema needs. Its only output is `<outdir>/pipeline_info/bccdc_provenance_spike.jsonl`: one JSON object per line - a `run` record, one `task` record per task (executed, cached or failed) and one `publish` record per published file.
 
-## Build and run
+## Build and install
+
+The pipeline's `nextflow.config` loads this plugin, so it must be installed before running the pipeline. It isn't published anywhere yet, so Nextflow can't download it: without it, a run stops immediately with `Plugin with id nf-bccdc-provenance not found in any repository`.
 
 Needs a JDK (17+). The Gradle wrapper downloads Gradle itself.
 
 ```bash
 cd plugins/nf-bccdc-provenance
-./gradlew assemble    # -> build/distributions/nf-bccdc-provenance-0.1.0.zip
+./gradlew install
 ```
 
-Unpack it into a plugins directory, then run the pipeline with that directory and the plugin added:
+That installs it into `~/.nextflow/plugins`, where Nextflow looks by default; set `NXF_PLUGINS_DIR` first to install somewhere else (Nextflow then looks there too). Rerun it after changing the plugin. `./gradlew assemble` just builds the zip (`build/distributions/nf-bccdc-provenance-0.1.0.zip`). CI runs `./gradlew install` before nf-test (`.github/actions/nf-test/action.yml`).
 
-```bash
-PLUGINS=$PWD/nxf_plugins
-mkdir -p $PLUGINS/nf-bccdc-provenance-0.1.0
-unzip -o plugins/nf-bccdc-provenance/build/distributions/nf-bccdc-provenance-0.1.0.zip -d $PLUGINS/nf-bccdc-provenance-0.1.0
-
-NXF_PLUGINS_DIR=$PLUGINS nextflow run . -profile test_full,docker \
-    -plugins nf-schema@2.5.1,nf-prov@1.7.0,nf-bccdc-provenance@0.1.0 \
-    --outdir results
-```
-
-(`./gradlew install` instead installs it into `~/.nextflow/plugins`.)
-
-`-plugins` **replaces** the pipeline's own plugin list rather than adding to it, and so does a `plugins {}` block in an extra `-c` config. That's why the pipeline's own plugins are repeated, at the versions pinned in `nextflow.config`. Without them, Nextflow pulls the latest nf-schema, whose API differs, and the run fails. Once the plugin is real it goes in `nextflow.config`'s `plugins {}` block instead.
+To try a different build of the plugin without editing `nextflow.config`, note that both `-plugins` on the command line and a `plugins {}` block in an extra `-c` config **replace** the pipeline's plugin list rather than adding to it - so repeat the pipeline's own plugins at their pinned versions, e.g. `-plugins nf-schema@2.5.1,nf-prov@1.7.0,nf-bccdc-provenance@0.1.0`. Leaving them out makes Nextflow pull the latest nf-schema, whose API differs, and the run fails.
 
 ## Spike findings
 

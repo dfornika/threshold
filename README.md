@@ -76,6 +76,15 @@ optional. `expected_taxid` is an NCBI taxid (names aren't accepted); checking it
 needs `--species_id_manifest`, which maps the sylph database's accessions to
 NCBI taxids. See [`docs/usage.md`](docs/usage.md) for details.
 
+Before the first run, install the pipeline's provenance plugin, which is built
+from this repo (it isn't published yet). It needs a JDK (17+):
+
+```bash
+(cd plugins/nf-bccdc-provenance && ./gradlew install)
+```
+
+See [`plugins/nf-bccdc-provenance/README.md`](plugins/nf-bccdc-provenance/README.md).
+
 Now, you can run the pipeline using:
 
 ```bash

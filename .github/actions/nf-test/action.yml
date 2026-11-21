@@ -24,6 +24,14 @@ runs:
       with:
         version: "${{ env.NXF_VERSION }}"
 
+    # nextflow.config loads nf-bccdc-provenance, which is built from this repo
+    # and isn't published anywhere, so install it into ~/.nextflow/plugins
+    # before Nextflow looks for it. See plugins/nf-bccdc-provenance/README.md.
+    - name: Install nf-bccdc-provenance plugin
+      shell: bash
+      working-directory: plugins/nf-bccdc-provenance
+      run: ./gradlew --no-daemon install
+
     - name: Set up Python
       uses: actions/setup-python@a309ff8b426b58ec0e2a45f0f869d46889d02405 # v6
       with:
