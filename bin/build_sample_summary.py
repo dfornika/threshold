@@ -38,6 +38,8 @@ HEADER = [
     "assembly_genome_fraction",
     "assembly_completeness",
     "assembly_contamination",
+    "assembly_features_complete",
+    "assembly_features_partial",
 ]
 
 
@@ -95,6 +97,8 @@ def main():
                 "assembly_genome_fraction": asm.get("genome_fraction", NA),
                 "assembly_completeness": asm.get("completeness", NA),
                 "assembly_contamination": asm.get("contamination", NA),
+                "assembly_features_complete": asm.get("features_complete", NA),
+                "assembly_features_partial": asm.get("features_partial", NA),
             }
         )
 

@@ -11,8 +11,10 @@
 //      it consistent with the samplesheet (verdict `match`, or `not_checked`
 //      when no expected_taxid was given) - never for a `mismatch`.
 //
-// Fetched genomes are cached by accession in --reference_genome_cache_dir
-// (Nextflow storeDir), so each is downloaded once across runs. A fetch failure
+// Fetched genomes (via the NCBI Datasets CLI: FASTA, plus GFF3 annotation
+// when NCBI has one, plus metadata reports) are cached by accession in
+// --reference_genome_cache_dir (Nextflow storeDir), so each is downloaded
+// once across runs. A fetch failure
 // degrades gracefully (see conf/modules.config's FETCH_REFERENCE_GENOME
 // errorStrategy) - the sample just has no reference. Toggle fetching with
 // --skip_reference_genome_fetch; local FASTA paths are used either way.
@@ -64,6 +66,7 @@ workflow REFERENCE_GENOME {
     def ch_local_reference = ch_source.fasta.map { meta, path -> tuple(meta, file(path, checkIfExists: true)) }
 
     def ch_fetched_reference = channel.empty()
+    def ch_fetched_gff       = channel.empty()
     if (!params.skip_reference_genome_fetch && !params.skip_assembly) {
         if (!params.reference_genome_cache_dir) {
             error("Reference genome fetch is enabled but --reference_genome_cache_dir was not set. Provide a cache directory or run with --skip_reference_genome_fetch.")
@@ -76,8 +79,19 @@ workflow REFERENCE_GENOME {
             .map { meta, accession -> tuple(accession, meta) }
             .combine(ch_reference_by_accession, by: 0)
             .map { _accession, meta, fasta -> tuple(meta, fasta) }
+
+        // Same per-accession -> per-sample fan-out for the GFF, which is
+        // optional (unannotated assemblies have none), so a sample may have a
+        // FASTA but no GFF.
+        def ch_gff_by_accession = FETCH_REFERENCE_GENOME.out.gff
+            .map { gff -> tuple(gff.name.replace('.gff.gz', ''), gff) }
+        ch_fetched_gff = ch_source.accession
+            .map { meta, accession -> tuple(accession, meta) }
+            .combine(ch_gff_by_accession, by: 0)
+            .map { _accession, meta, gff -> tuple(meta, gff) }
     }
 
     emit:
     sample_reference = ch_local_reference.mix(ch_fetched_reference)   // tuple(meta, reference FASTA) - isolates with a reference only
+    sample_gff       = ch_fetched_gff                                 // tuple(meta, reference GFF3) - fetched references with NCBI annotation only
 }

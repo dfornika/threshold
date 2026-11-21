@@ -2,4 +2,6 @@ channels:
   - conda-forge
   - bioconda
 dependencies:
-  - bioconda::entrez-direct=16.2
+  # Same version as the staphb/ncbi-datasets container in main.nf.
+  - conda-forge::ncbi-datasets-cli=18.39.0
+  - conda-forge::unzip=6.0

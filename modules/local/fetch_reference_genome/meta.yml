@@ -1,16 +1,17 @@
 name: "fetch_reference_genome"
-description: Fetch and cache a whole-genome-assembly FASTA (all contigs/plasmids) for an NCBI assembly accession, via E-utilities (esearch/elink/efetch)
+description: Fetch and cache an NCBI assembly's whole-genome FASTA, GFF3 annotation (when available) and metadata reports, via the NCBI Datasets CLI
 keywords:
   - reference genome
+  - annotation
   - ncbi
-  - entrez-direct
+  - datasets
   - download
   - cache
 tools:
-  - "entrez-direct":
-      description: NCBI's command-line E-utilities client
-      homepage: https://www.ncbi.nlm.nih.gov/books/NBK179288/
-      documentation: https://www.ncbi.nlm.nih.gov/books/NBK25501/
+  - "ncbi-datasets-cli":
+      description: NCBI Datasets command-line tool for downloading genome assemblies, annotation and metadata
+      homepage: https://www.ncbi.nlm.nih.gov/datasets/
+      documentation: https://www.ncbi.nlm.nih.gov/datasets/docs/v2/reference-docs/command-line/datasets/
       licence: ["Public Domain"]
 
 input:
@@ -20,10 +21,25 @@ input:
 
 output:
   - fasta:
-      - "*.fasta.gz":
+      - "${accession}.fasta.gz":
           type: file
           description: Whole-assembly FASTA (all contigs/plasmids), gzipped
           pattern: "*.fasta.gz"
+  - gff:
+      - "${accession}.gff.gz":
+          type: file
+          description: Optional. GFF3 annotation for the assembly, gzipped, with the same sequence names as the FASTA. Absent for unannotated assemblies.
+          pattern: "*.gff.gz"
+  - assembly_report:
+      - "${accession}.assembly_report.jsonl":
+          type: file
+          description: NCBI Datasets assembly data report (organism, taxid, assembly stats, annotation info)
+          pattern: "*.assembly_report.jsonl"
+  - sequence_report:
+      - "${accession}.sequence_report.jsonl":
+          type: file
+          description: NCBI Datasets per-sequence report (accessions, roles, lengths)
+          pattern: "*.sequence_report.jsonl"
 
 authors:
   - "@dfornika"
