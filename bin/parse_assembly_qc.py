@@ -14,6 +14,7 @@ back as NA when absent.
 
 import argparse
 import csv
+import re
 import sys
 
 NA = "NA"
@@ -37,7 +38,19 @@ def parse_quast(path):
         # strain divergence (unlike the misassembly/mismatch counts, which stay
         # in the full QUAST report rather than this summary).
         "genome_fraction": metrics.get("Genome fraction (%)", NA),
+        # Only present when QUAST ran with --features (the reference's GFF3);
+        # reported as e.g. "510 + 2 part" - complete + partially recovered.
+        **parse_features(metrics.get("# genomic features")),
     }
+
+
+def parse_features(value):
+    if not value:
+        return {"features_complete": NA, "features_partial": NA}
+    match = re.match(r"\s*(\d+)\s*(?:\+\s*(\d+)\s*part)?", value)
+    if not match:
+        return {"features_complete": NA, "features_partial": NA}
+    return {"features_complete": match.group(1), "features_partial": match.group(2) or "0"}
 
 
 def parse_checkm2(path):
@@ -67,7 +80,8 @@ def main():
     print(
         f"{args.sample}\t{args.platform}\t{args.assembler}\t"
         f"{q['n_contigs']}\t{q['total_length']}\t{q['largest_contig']}\t{q['n50']}\t"
-        f"{q['genome_fraction']}\t{c['completeness']}\t{c['contamination']}"
+        f"{q['genome_fraction']}\t{c['completeness']}\t{c['contamination']}\t"
+        f"{q['features_complete']}\t{q['features_partial']}"
     )
 
 

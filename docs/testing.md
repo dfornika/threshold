@@ -318,6 +318,13 @@ written to `${outdir}/assembly/<sample>/<sample>.genome_size.txt`.
   CheckM2) is surfaced in the one-row summary; the misassembly/mismatch numbers
   stay in the full QUAST report (`${outdir}/assembly/quast/`) rather than
   inviting over-interpretation in the headline table.
+  When the reference was fetched from NCBI with a GFF3 annotation, it's also
+  passed as QUAST's `--features`, adding genomic-feature recovery (complete +
+  partial genes, e.g. `510 + 2 part`), surfaced as `features_complete` /
+  `features_partial`. Local FASTA references and unannotated assemblies have
+  no GFF, so those columns are `NA`. Verified on a 500 kb slice of a fetched
+  *K. pneumoniae* reference: QUAST matched the NCBI GFF's sequence names and
+  reported 510 complete + 2 partial features.
 - [`CheckM2`](https://github.com/chklovski/CheckM2) for completeness +
   contamination. **Only runs when `--checkm2_db` is provided** - its DIAMOND
   database is a large external download, so it's opt-in. Without it, the

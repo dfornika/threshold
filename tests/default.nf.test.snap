@@ -32,7 +32,6 @@
                 }
             },
             [
-                "README.md:md5,027cde88272a9083d1b835a0f0d9d057",
                 "dehost",
                 "dehost/SAMPLE_ONT.dehost.stats.tsv",
                 "dehost/SAMPLE_ONT.dehosted.fastq.gz",
@@ -71,7 +70,6 @@
                 "fastqc/SAMPLE_PE_raw_2_fastqc.html",
                 "fastqc/SAMPLE_PE_raw_2_fastqc.zip",
                 "host_mini.fasta",
-                "main.nf:md5,d733ca8278a07a454c9b4fe39911685a",
                 "manifest.csv",
                 "multiqc",
                 "multiqc/multiqc_data",
@@ -192,12 +190,9 @@
                 "multiqc/multiqc_plots/svg/fastqc_sequence_length_distribution_plot.svg",
                 "multiqc/multiqc_plots/svg/fastqc_top_overrepresented_sequences_table.svg",
                 "multiqc/multiqc_report.html",
-                "nextflow.config:md5,c2cf78fc1964e189a32d82fb08443d5c",
-                "nextflow_schema.json:md5,7d00b69c6445057d3a9c354e2437c422",
                 "pipeline_info",
                 "pipeline_info/gx-threshold_software_mqc_versions.yml",
                 "pipeline_info/sample_manifest.tsv",
-                "ro-crate-metadata.json:md5,0db727c9bdc3eaa9d9be3a55097d5b05",
                 "sample_summary.csv",
                 "samplesheet.abs.csv",
                 "species_id",
@@ -253,7 +248,7 @@
                 "multiqc_fastqc.txt:md5,617dbf769d3fc5a981f0762d0e755afd",
                 "multiqc_general_stats.txt:md5,66ece872a7c836c0291dd32cad0beed1",
                 "sample_manifest.tsv:md5,e7073366d49f1ddf70d8142f31f12004",
-                "sample_summary.csv:md5,3b97e5bb8ac524be9fa068ee011cbd87",
+                "sample_summary.csv:md5,76454f9d18152efddcb0cf301d0b9c90",
                 "SAMPLE_ONT.species_check.tsv:md5,cfbf76fd511b563ce4c72c2eb003ff48",
                 "SAMPLE_PE.species_check.tsv:md5,6418a61e057e3e910483e522cda3d1a7",
                 "species_check_summary.tsv:md5,0dde191721202b4c94a04d333120ec6c",
@@ -262,7 +257,7 @@
                 "SAMPLE_PE.tsv:md5,a6fed46148a3614a3516c0c26919180f"
             ]
         ],
-        "timestamp": "2026-11-20T20:03:26.532590749",
+        "timestamp": "2026-11-21T00:18:12.461828169",
         "meta": {
             "nf-test": "0.9.5",
             "nextflow": "26.04.4"

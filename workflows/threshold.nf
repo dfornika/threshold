@@ -72,6 +72,7 @@ workflow THRESHOLD {
     ASSEMBLY_ANALYSIS(
         ch_clean_reads,
         REFERENCE_GENOME.out.sample_reference,
+        REFERENCE_GENOME.out.sample_gff,
         SPECIES_ID.out.species_check,
         outdir
     )

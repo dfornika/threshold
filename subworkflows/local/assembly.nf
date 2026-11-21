@@ -25,6 +25,7 @@ workflow ASSEMBLY_ANALYSIS {
     take:
     ch_clean_reads          // tuple(meta, reads) - meta carries platform/sample_type from the samplesheet
     ch_sample_reference     // tuple(meta, reference fasta) - from REFERENCE_GENOME; isolates with a reference only
+    ch_sample_gff           // tuple(meta, reference gff3) - from REFERENCE_GENOME; fetched references with NCBI annotation only
     ch_species_check        // tuple(meta, species_check tsv) - from SPECIES_ID; taxid fallback for the gsize hint
     outdir
 
@@ -123,14 +124,24 @@ workflow ASSEMBLY_ANALYSIS {
         // just assembly error - see docs/testing.md (they stay in the full
         // QUAST report, only genome fraction is surfaced in the summary).
         //
+        // The reference's GFF3 annotation, when there is one (fetched NCBI
+        // references only - not local FASTAs or unannotated assemblies), goes
+        // in as QUAST's `--features`, adding genomic-feature counts (complete
+        // and partial genes recovered). Joined by meta.id the same way.
+        //
+        def ch_gff_by_id = ch_sample_gff.map { m, gff -> tuple(m.id, gff) }
         def ch_quast_in = ch_assembly
             .map { meta, fa -> tuple(meta.id, meta, fa) }
             .join(ch_ref_by_id, remainder: true)
-            .filter { entry -> entry[1] != null }   // keep only assemblies, not remainder-only references
-            .multiMap { _id, meta, fa, reference ->
+            .join(ch_gff_by_id, remainder: true)
+            .filter { entry -> entry[1] != null }   // keep only assemblies, not remainder-only references/GFFs
+            .multiMap { _id, meta, fa, reference, gff ->
                 assembly:  tuple(meta, fa)
                 reference: tuple(meta, reference ?: [])
-                gff:       tuple([:], [])
+                // QUAST's --features only means something against the
+                // reference the annotation belongs to, so never pass a GFF
+                // without its reference.
+                gff:       tuple(meta, (reference && gff) ? gff : [])
             }
         QUAST(ch_quast_in.assembly, ch_quast_in.reference, ch_quast_in.gff)
         ch_multiqc_files = ch_multiqc_files.mix(QUAST.out.tsv.map { _meta, file -> file })
@@ -170,7 +181,7 @@ workflow ASSEMBLY_ANALYSIS {
                 name: 'assembly_summary.tsv',
                 storeDir: "${outdir}/assembly",
                 sort: { file -> file.name },   // by file name (= sample), not full work-dir path, so row order is stable across runs
-                seed: "sample\tplatform\tassembler\tn_contigs\ttotal_length\tlargest_contig\tn50\tgenome_fraction\tcompleteness\tcontamination\n"
+                seed: "sample\tplatform\tassembler\tn_contigs\ttotal_length\tlargest_contig\tn50\tgenome_fraction\tcompleteness\tcontamination\tfeatures_complete\tfeatures_partial\n"
             )
             .ifEmpty([])
     }
