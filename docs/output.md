@@ -1,4 +1,4 @@
-# BCCDC-PHL/gx-threshold: Output
+# BCCDC-PHL/threshold: Output
 
 ## Introduction
 

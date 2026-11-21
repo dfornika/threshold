@@ -1,4 +1,4 @@
-# BCCDC-PHL/gx-threshold: Citations
+# BCCDC-PHL/threshold: Citations
 
 ## [nf-core](https://pubmed.ncbi.nlm.nih.gov/32055031/)
 

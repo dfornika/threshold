@@ -28,7 +28,7 @@
                     "sylph": "1.0.0"
                 },
                 "Workflow": {
-                    "BCCDC-PHL/gx-threshold": "v0.1.0"
+                    "BCCDC-PHL/threshold": "v0.1.0"
                 }
             },
             [
@@ -190,8 +190,8 @@
                 "multiqc/multiqc_report.html",
                 "pipeline_info",
                 "pipeline_info/bccdc_provenance_spike.jsonl",
-                "pipeline_info/gx-threshold_software_mqc_versions.yml",
                 "pipeline_info/sample_manifest.tsv",
+                "pipeline_info/threshold_software_mqc_versions.yml",
                 "sample_summary.csv",
                 "samplesheet.abs.csv",
                 "species_id",
@@ -252,7 +252,7 @@
                 "SAMPLE_PE.tsv:md5,a6fed46148a3614a3516c0c26919180f"
             ]
         ],
-        "timestamp": "2026-11-21T08:42:17.433226027",
+        "timestamp": "2026-11-21T08:50:40.919706555",
         "meta": {
             "nf-test": "0.9.5",
             "nextflow": "26.04.4"

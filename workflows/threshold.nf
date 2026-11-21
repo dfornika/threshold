@@ -114,7 +114,7 @@ workflow THRESHOLD {
         .mix(topic_versions_string)
         .collectFile(
             storeDir: "${outdir}/pipeline_info",
-            name:  'gx-threshold_software_'  + 'mqc_'  + 'versions.yml',
+            name:  'threshold_software_'  + 'mqc_'  + 'versions.yml',
             sort: true,
             newLine: true
         )
@@ -134,7 +134,7 @@ workflow THRESHOLD {
     MULTIQC(
         ch_multiqc_files.flatten().collect().map { files ->
             [
-                [id: 'gx-threshold'],
+                [id: 'threshold'],
                 files,
                 multiqc_config
                     ? file(multiqc_config, checkIfExists: true)

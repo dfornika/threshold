@@ -1,6 +1,6 @@
 #!/usr/bin/env python3
 """
-Generate tiny, deterministic synthetic test fixtures for the gx-threshold test
+Generate tiny, deterministic synthetic test fixtures for the threshold test
 profile and nf-test unit tests.
 
 Everything is seeded (stdlib `random` only), so re-running reproduces byte-identical

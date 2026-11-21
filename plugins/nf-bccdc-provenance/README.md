@@ -39,7 +39,7 @@ Built against the Nextflow 25.10.0 API (`TraceObserverV2`) and run on Nextflow 2
 
 ### To design for in the real plugin
 
-1. **Run-level tasks that have a `meta.id`.** MultiQC's `meta.id` is `gx-threshold`, the run-wide ID, not a sample. The plugin needs a reliable way to tell samples apart: e.g. the IDs read from the samplesheet, or IDs that appear across several processes, or a configurable list of run-level processes.
+1. **Run-level tasks that have a `meta.id`.** MultiQC's `meta.id` is `threshold`, the run-wide ID, not a sample. The plugin needs a reliable way to tell samples apart: e.g. the IDs read from the samplesheet, or IDs that appear across several processes, or a configurable list of run-level processes.
 2. **Tasks keyed by something other than a sample**, such as `FETCH_REFERENCE_GENOME` (one task per accession, shared by samples). They're linked to samples because their outputs show up as inputs to per-sample tasks.
 3. **`storeDir` outputs are published from the cache, not a work dir** (8 of the 9 unattributed files), so they need attributing by output file name to the task that declares them.
 4. **Failed attempts are reported** (via `onTaskComplete`, with no outputs) - e.g. Shovill's retries on too-shallow data. Record them as failed rather than as normal steps.
