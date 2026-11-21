@@ -58,6 +58,26 @@ SARS2_1,SARS2_1_R1.fastq.gz,SARS2_1_R2.fastq.gz,illumina,amplicon_other,2697049,
 
 An [example samplesheet](../assets/samplesheet.csv) has been provided with the pipeline.
 
+## Species-ID manifest
+
+sylph reports hits as reference-genome accessions with no taxonomy, so checking a sample's `expected_taxid` needs `--species_id_manifest`: a CSV mapping each accession in the sylph database to its NCBI taxonomy. The columns used are `accession` (an NCBI assembly accession, `GCF_...` / `GCA_...`), `taxid` and `species_taxid`, plus optionally `species_name` and `organism` for readable output. A hit whose accession isn't in the manifest is reported as `unresolved`, not `mismatch`.
+
+For a database built from GTDB genomes, build the manifest from GTDB's own release metadata, which records each genome's NCBI taxid and species taxid:
+
+```bash
+curl -O https://data.gtdb.ecogenomic.org/releases/latest/bac120_metadata.tsv.gz
+curl -O https://data.gtdb.ecogenomic.org/releases/latest/ar53_metadata.tsv.gz
+python3 scripts/build_species_manifest_from_gtdb.py \
+    bac120_metadata.tsv.gz ar53_metadata.tsv.gz \
+    --accessions genomes.txt \
+    -o species_id_manifest.csv
+```
+
+- `--accessions` keeps only the accessions found anywhere in a text file (e.g. `ls <genome dir> > genomes.txt`, the genomes the sylph database was built from), and reports any it couldn't find. Without it the manifest covers every GTDB genome (several hundred thousand rows).
+- `--representatives-only` keeps only GTDB species representatives, which is what GTDB-based sylph databases are usually built from.
+- Use the GTDB release the database was built from: newer genomes than the release won't be in its metadata.
+- The NCBI taxonomy is per genome. Uncultured or metagenome-assembled genomes are often filed above species level by NCBI, and GTDB species can span several NCBI species (e.g. _E. coli_ and _Shigella_), so a hit reports the NCBI species of that particular genome.
+
 ## Running the pipeline
 
 The typical command for running the pipeline is as follows:
