@@ -117,7 +117,7 @@ workflow PIPELINE_INITIALISATION {
         error("The samplesheet has expected_taxid values, but --species_id_manifest was not set. The manifest (accession -> taxid/species_taxid) is needed to check them; provide one or remove expected_taxid.")
     }
 
-    channel
+    def ch_samplesheet = channel
         .fromList(samplesheet_rows)
         .map {
             meta, fastq_1, fastq_2 ->
@@ -138,7 +138,6 @@ workflow PIPELINE_INITIALISATION {
             meta, fastqs ->
                 return [ meta, fastqs.flatten() ]
         }
-        .set { ch_samplesheet }
 
     emit:
     samplesheet = ch_samplesheet

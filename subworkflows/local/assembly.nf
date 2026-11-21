@@ -75,11 +75,11 @@ workflow ASSEMBLY_ANALYSIS {
             .map { _id, meta, reference, taxid -> tuple(meta, reference ?: [], taxid ?: 'NA') }
 
         def ch_genome_size_table = channel.value(file("${projectDir}/assets/genome_sizes.tsv", checkIfExists: true))
-        GENOME_SIZE(ch_size_in, ch_genome_size_table, params.default_genome_size)
+        def genome_size_out = GENOME_SIZE(ch_size_in, ch_genome_size_table, params.default_genome_size)
 
         def ch_reads_sized = ch_gated.assemble
             .map { meta, reads -> tuple(meta.id, meta, reads) }
-            .join(GENOME_SIZE.out.size.map { meta, file -> tuple(meta.id, file.text.trim().split('\t')[0]) })
+            .join(genome_size_out.size.map { meta, file -> tuple(meta.id, file.text.trim().split('\t')[0]) })
             .map { _id, meta, reads, gsize -> tuple(meta + [genome_size: gsize], reads) }
 
         //
@@ -96,16 +96,16 @@ workflow ASSEMBLY_ANALYSIS {
         // bacterial defaults. Gets --gsize from meta.genome_size (see
         // conf/modules.config).
         //
-        SHOVILL(ch_to_assemble.short_reads)
-        def ch_shovill = SHOVILL.out.contigs.map { meta, fa -> tuple(meta + [assembler: 'shovill'], fa) }
+        def shovill_out = SHOVILL(ch_to_assemble.short_reads)
+        def ch_shovill = shovill_out.contigs.map { meta, fa -> tuple(meta + [assembler: 'shovill'], fa) }
 
         //
         // MODULE: Dragonflye (Nanopore) - Flye + Racon/Medaka polish +
         // reorientation. shortreads input is empty (ONT-only, no hybrid). Gets
         // --gsize from meta.genome_size (see conf/modules.config).
         //
-        DRAGONFLYE(ch_to_assemble.long_reads.map { meta, reads -> tuple(meta, [], reads) })
-        def ch_dragonflye = DRAGONFLYE.out.contigs.map { meta, fa -> tuple(meta + [assembler: 'dragonflye'], fa) }
+        def dragonflye_out = DRAGONFLYE(ch_to_assemble.long_reads.map { meta, reads -> tuple(meta, [], reads) })
+        def ch_dragonflye = dragonflye_out.contigs.map { meta, fa -> tuple(meta + [assembler: 'dragonflye'], fa) }
 
         def ch_assembly = ch_shovill.mix(ch_dragonflye)   // tuple(meta, assembly fasta)
 
@@ -143,8 +143,8 @@ workflow ASSEMBLY_ANALYSIS {
                 // without its reference.
                 gff:       tuple(meta, (reference && gff) ? gff : [])
             }
-        QUAST(ch_quast_in.assembly, ch_quast_in.reference, ch_quast_in.gff)
-        ch_multiqc_files = ch_multiqc_files.mix(QUAST.out.tsv.map { _meta, file -> file })
+        def quast_out = QUAST(ch_quast_in.assembly, ch_quast_in.reference, ch_quast_in.gff)
+        ch_multiqc_files = ch_multiqc_files.mix(quast_out.tsv.map { _meta, file -> file })
 
         //
         // MODULE: CheckM2 - completeness + contamination. Only runs when a
@@ -153,9 +153,9 @@ workflow ASSEMBLY_ANALYSIS {
         def ch_checkm2 = channel.empty()
         if (params.checkm2_db) {
             def ch_checkm2_db = channel.value([[id: 'checkm2_db'], file(params.checkm2_db, checkIfExists: true)])
-            CHECKM2_PREDICT(ch_assembly.map { meta, fa -> tuple(meta, fa) }, ch_checkm2_db)
-            ch_checkm2 = CHECKM2_PREDICT.out.checkm2_tsv
-            ch_multiqc_files = ch_multiqc_files.mix(CHECKM2_PREDICT.out.checkm2_tsv.map { _meta, file -> file })
+            def checkm2_predict_out = CHECKM2_PREDICT(ch_assembly.map { meta, fa -> tuple(meta, fa) }, ch_checkm2_db)
+            ch_checkm2 = checkm2_predict_out.checkm2_tsv
+            ch_multiqc_files = ch_multiqc_files.mix(checkm2_predict_out.checkm2_tsv.map { _meta, file -> file })
         }
 
         //
@@ -164,18 +164,18 @@ workflow ASSEMBLY_ANALYSIS {
         // `?: []` so samples flow through even when CheckM2 didn't run (no db)
         // - always join by meta.id, never on the whole meta map.
         //
-        def ch_summary_in = QUAST.out.tsv
+        def ch_summary_in = quast_out.tsv
             .map { meta, tsv -> tuple(meta.id, meta, tsv) }
             .join(ch_checkm2.map { meta, tsv -> tuple(meta.id, tsv) }, remainder: true)
             .map { _id, meta, quast, checkm2 -> tuple(meta, quast, checkm2 ?: []) }
 
-        ASSEMBLY_SUMMARY(ch_summary_in)
+        def assembly_summary_out = ASSEMBLY_SUMMARY(ch_summary_in)
 
         // .ifEmpty([]): see subworkflows/local/species_id.nf for why -
         // collectFile emits nothing at all if no sample reached assembly (e.g.
         // no isolates this run), so SAMPLE_SUMMARY still
         // gets a usable value.
-        ch_assembly_summary = ASSEMBLY_SUMMARY.out.summary
+        ch_assembly_summary = assembly_summary_out.summary
             .map { _meta, file -> file }
             .collectFile(
                 name: 'assembly_summary.tsv',

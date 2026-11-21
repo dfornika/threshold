@@ -45,38 +45,38 @@ workflow THRESHOLD {
     // reads, dehosting, then a measurement-only FastQC/fastp/fastplong pass
     // on the final reads that flow to every downstream analysis.
     //
-    READ_QC_AND_DEHOSTING(ch_samplesheet, outdir)
-    def ch_clean_reads = READ_QC_AND_DEHOSTING.out.reads
-    ch_multiqc_files   = ch_multiqc_files.mix(READ_QC_AND_DEHOSTING.out.multiqc_files)
+    def read_qc_and_dehosting_out = READ_QC_AND_DEHOSTING(ch_samplesheet, outdir)
+    def ch_clean_reads = read_qc_and_dehosting_out.reads
+    ch_multiqc_files   = ch_multiqc_files.mix(read_qc_and_dehosting_out.multiqc_files)
 
     //
     // SUBWORKFLOW: Species ID (sylph) + check against the samplesheet's
     // expected_taxid - catches sample swaps / contamination / mislabelling.
     //
     def ch_species_id_manifest = params.species_id_manifest ? file(params.species_id_manifest, checkIfExists: true) : []
-    SPECIES_ID(ch_clean_reads, ch_species_id_manifest, outdir)
-    ch_multiqc_files = ch_multiqc_files.mix(SPECIES_ID.out.multiqc_files)
+    def species_id_out = SPECIES_ID(ch_clean_reads, ch_species_id_manifest, outdir)
+    ch_multiqc_files = ch_multiqc_files.mix(species_id_out.multiqc_files)
 
     //
     // SUBWORKFLOW: Reference genome per isolate - the samplesheet's
     // `reference` (local FASTA or fetched accession), else the species-ID
     // top hit when it agrees with the samplesheet.
     //
-    REFERENCE_GENOME(ch_clean_reads, SPECIES_ID.out.species_check)
+    def reference_genome_out = REFERENCE_GENOME(ch_clean_reads, species_id_out.species_check)
 
     //
     // SUBWORKFLOW: Draft genome assembly + assembly QC - isolates only,
     // routed by platform to Shovill (Illumina) / Dragonflye (Nanopore), then
     // QUAST + (optional) CheckM2.
     //
-    ASSEMBLY_ANALYSIS(
+    def assembly_analysis_out = ASSEMBLY_ANALYSIS(
         ch_clean_reads,
-        REFERENCE_GENOME.out.sample_reference,
-        REFERENCE_GENOME.out.sample_gff,
-        SPECIES_ID.out.species_check,
+        reference_genome_out.sample_reference,
+        reference_genome_out.sample_gff,
+        species_id_out.species_check,
         outdir
     )
-    ch_multiqc_files = ch_multiqc_files.mix(ASSEMBLY_ANALYSIS.out.multiqc_files)
+    ch_multiqc_files = ch_multiqc_files.mix(assembly_analysis_out.multiqc_files)
 
     //
     // MODULE: One-row-per-sample summary CSV. The sample manifest anchors
@@ -84,10 +84,10 @@ workflow THRESHOLD {
     // skipped or reached no samples).
     //
     SAMPLE_SUMMARY(
-        READ_QC_AND_DEHOSTING.out.sample_manifest,
-        READ_QC_AND_DEHOSTING.out.dehost_summary,
-        SPECIES_ID.out.species_check_summary,
-        ASSEMBLY_ANALYSIS.out.assembly_summary
+        read_qc_and_dehosting_out.sample_manifest,
+        read_qc_and_dehosting_out.dehost_summary,
+        species_id_out.species_check_summary,
+        assembly_analysis_out.assembly_summary
     )
 
     //
@@ -131,7 +131,7 @@ workflow THRESHOLD {
         : file("${projectDir}/assets/methods_description_template.yml", checkIfExists: true)
     def ch_methods_description = channel.value(methodsDescriptionText(ch_multiqc_custom_methods_description))
     ch_multiqc_files = ch_multiqc_files.mix(ch_methods_description.collectFile(name: 'methods_description_mqc.yaml', sort: true))
-    MULTIQC(
+    def multiqc_out = MULTIQC(
         ch_multiqc_files.flatten().collect().map { files ->
             [
                 [id: 'threshold'],
@@ -145,7 +145,7 @@ workflow THRESHOLD {
             ]
         }
     )
-    emit:multiqc_report = MULTIQC.out.report.map { _meta, report -> [report] }.toList() // channel: /path/to/multiqc_report.html
+    emit:multiqc_report = multiqc_out.report.map { _meta, report -> [report] }.toList() // channel: /path/to/multiqc_report.html
     versions       = ch_versions                 // channel: [ path(versions.yml) ]
 }
 
