@@ -209,7 +209,7 @@ def validateInputSamplesheet(input) {
 
     // Every samplesheet-provided field must agree across a sample's runs -
     // they describe the sample, not the run.
-    ['platform', 'sample_type', 'expected_taxid', 'reference', 'genome_size', 'project_id', 'tags'].each { key ->
+    ['platform', 'sample_type', 'expected_taxid', 'reference', 'genome_size', 'project_id', 'tags', 'publish_dehosted_reads'].each { key ->
         if (metas.collect { meta -> meta[key] }.unique().size() != 1) {
             error("Please check input samplesheet -> Multiple runs of a sample must have the same ${key}: ${metas[0].id}")
         }
