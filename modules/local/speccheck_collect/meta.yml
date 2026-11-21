@@ -1,0 +1,44 @@
+name: "speccheck_collect"
+description: Check one sample's QC outputs (QUAST, sylph, fastp, CheckM2) against species-specific criteria, including QualiBact thresholds, with speccheck
+keywords:
+  - qc
+  - thresholds
+  - qualibact
+  - species
+tools:
+  - "speccheck":
+      description: Quality control based on species criteria - reads existing QC tool outputs and checks them against per-species thresholds
+      homepage: https://gitlab.com/cgps/tools/speccheck
+      documentation: https://github.com/happykhan/speccheck/tree/main/docs
+      licence: ["GPL-3.0"]
+
+input:
+  - - meta:
+        type: map
+        description: |
+          Groovy Map containing sample information. Must include `id` and `platform` (selects the `short`/`long` assembly type).
+    - qc_files:
+        type: file
+        description: QC outputs speccheck can parse - QUAST report.tsv, sylph profile TSV, fastp JSON, CheckM2 quality report
+    - organism:
+        type: string
+        description: Species name (NCBI), used to select criteria rows and passed as metadata so the QualiBact compatibility check uses the right scheme
+  - - criteria:
+        type: file
+        description: Optional custom criteria CSV (default - speccheck's bundled criteria)
+        pattern: "*.csv"
+
+output:
+  - result:
+      - meta:
+          type: map
+          description: Groovy Map containing sample information
+      - "*.speccheck.csv":
+          type: file
+          description: speccheck's per-sample collect CSV - parsed metrics, per-check status columns and provenance
+          pattern: "*.speccheck.csv"
+
+authors:
+  - "@dfornika"
+maintainers:
+  - "@dfornika"

@@ -24,6 +24,7 @@ workflow SPECIES_ID {
     def ch_multiqc_files = channel.empty()
     def ch_species_check = channel.empty()
     def ch_species_check_summary = channel.value([])
+    def ch_sylph_profile = channel.empty()
 
     if (!params.skip_species_id) {
         if (!params.sylph_db) {
@@ -33,6 +34,7 @@ workflow SPECIES_ID {
         def ch_to_profile = ch_clean_reads.filter { meta, _reads -> meta.sample_type != 'amplicon_16s' }
 
         def sylph_profile_out = SYLPH_PROFILE(ch_to_profile, ch_sylph_db)
+        ch_sylph_profile = sylph_profile_out.profile_out
         ch_multiqc_files = ch_multiqc_files.mix(sylph_profile_out.profile_out.map { _meta, file -> file })
 
         def species_check_out = SPECIES_CHECK(sylph_profile_out.profile_out, ch_species_id_manifest)
@@ -56,4 +58,5 @@ workflow SPECIES_ID {
     species_check         = ch_species_check          // tuple(meta, species_check.tsv) - one per profiled sample
     species_check_summary = ch_species_check_summary  // path (or []) - for SAMPLE_SUMMARY
     multiqc_files         = ch_multiqc_files
+    sylph_profile         = ch_sylph_profile          // tuple(meta, profile.tsv) - empty channel if species ID is skipped
 }

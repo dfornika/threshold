@@ -8,6 +8,7 @@ include { READ_QC_AND_DEHOSTING         } from '../subworkflows/local/read_qc_an
 include { SPECIES_ID                    } from '../subworkflows/local/species_id'
 include { REFERENCE_GENOME              } from '../subworkflows/local/reference_genome'
 include { ASSEMBLY_ANALYSIS             } from '../subworkflows/local/assembly'
+include { SPECCHECK                     } from '../subworkflows/local/speccheck'
 include { SAMPLE_SUMMARY                } from '../modules/local/sample_summary/main'
 include { paramsSummaryMap       } from 'plugin/nf-schema'
 include { paramsSummaryMultiqc   } from '../subworkflows/nf-core/utils_nfcore_pipeline'
@@ -79,6 +80,20 @@ workflow THRESHOLD {
     ch_multiqc_files = ch_multiqc_files.mix(assembly_analysis_out.multiqc_files)
 
     //
+    // SUBWORKFLOW: Species-specific QC thresholds (incl. QualiBact) with
+    // speccheck, for assembled isolates whose species is settled - checks the
+    // QUAST / sylph / fastp / CheckM2 outputs above against criteria for the
+    // sample's species.
+    //
+    def speccheck_out = SPECCHECK(
+        species_id_out.species_check,
+        assembly_analysis_out.quast_report,
+        assembly_analysis_out.checkm2_report,
+        species_id_out.sylph_profile,
+        read_qc_and_dehosting_out.fastp_json
+    )
+
+    //
     // MODULE: One-row-per-sample summary CSV. The sample manifest anchors
     // which rows exist; every other input is optional ([] if that stage was
     // skipped or reached no samples).
@@ -87,7 +102,8 @@ workflow THRESHOLD {
         read_qc_and_dehosting_out.sample_manifest,
         read_qc_and_dehosting_out.dehost_summary,
         species_id_out.species_check_summary,
-        assembly_analysis_out.assembly_summary
+        assembly_analysis_out.assembly_summary,
+        speccheck_out.report
     )
 
     //

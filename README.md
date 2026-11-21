@@ -51,7 +51,14 @@ status and known caveats.
    (reference-based metrics when the sample has a reference), plus
    [`CheckM2`](https://github.com/chklovski/CheckM2) for completeness /
    contamination when a `--checkm2_db` is provided.
-7. **Provenance** — the pipeline's `nf-bccdc-provenance` plugin writes
+7. **Species-specific QC thresholds** — [`speccheck`](https://gitlab.com/cgps/tools/speccheck)
+   checks each assembled isolate's QUAST, sylph, fastp and (with
+   `--checkm2_db`) CheckM2 results against criteria for its species, including
+   the [QualiBact](https://qualibact.org) thresholds, giving a PASS / WARN /
+   FAIL with reasons. Runs only when the species check agrees with the
+   samplesheet (or there was no expected taxid). Toggle with `--skip_speccheck`;
+   custom criteria via `--speccheck_criteria`.
+8. **Provenance** — the pipeline's `nf-bccdc-provenance` plugin writes
    [BCCDC-PHL pipeline provenance](https://github.com/BCCDC-PHL/pipeline-provenance-schema)
    records to `provenance/`: one `<sample>_provenance.yml` per sample (inputs
    with `sha256`, each process with its tool versions, parameters and
