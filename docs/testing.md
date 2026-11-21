@@ -117,7 +117,7 @@ layout unchanged for every other stage.
 ### Samplesheet metadata instead of inference
 
 What each sample *is* - `platform`, `sample_type` (`isolate` / `metagenomic` /
-`amplicon_16s` / `amplicon_other`), and optionally `expected_species`,
+`amplicon_16s` / `amplicon_other`), and optionally `expected_taxid`,
 `reference` and `genome_size` - comes from the samplesheet
 (`assets/schema_input.json`); `platform` and `sample_type` are required. In
 deployment, the automation system that launches the pipeline fills these in
@@ -154,27 +154,33 @@ mash/sourmash.
 every sample except `amplicon_16s` ones (a whole-genome database recovers
 almost nothing from ~1.5kb of one gene, so any hit would be noise), then
 `SPECIES_CHECK` (`bin/check_species.py`) compares the top hit with
-`expected_species`:
+`expected_taxid`:
 
-- `match` - the top hit is the expected species (for `metagenomic` samples:
-  the expected species is among any of the hits);
-- `mismatch` - there were hits, but not of the expected species - a likely
-  sample swap, contamination or mislabel;
+- `match` - the top hit is the expected taxon (for `metagenomic` samples:
+  the expected taxon is among any of the hits);
+- `mismatch` - the top hit is a different taxon - a likely sample swap,
+  contamination or mislabel;
+- `unresolved` - the top hit's accession isn't in the manifest, so there's no
+  taxid to compare (not counted as a mismatch: it says the manifest is
+  incomplete, not that the sample is wrong);
 - `no_hit` - sylph reported nothing above its own thresholds;
-- `not_checked` - no `expected_species` was given; the top hit is still
+- `not_checked` - no `expected_taxid` was given; the top hit is still
   reported.
 
-`expected_species` can be a species name or an NCBI taxid. With
-`--species_id_manifest`, it's matched against the hit's `species_name` /
-`organism` (names) or `species_taxid` / `taxid` (taxids) - so e.g. both
-"Severe acute respiratory syndrome coronavirus 2" and its current species
-name "Betacoronavirus pandemicum" match. Without a manifest, a name is matched
-as a substring of sylph's contig name. Collected into
+`expected_taxid` is an NCBI taxid only - names were dropped because they
+drift (NCBI now calls SARS-CoV-2's species "Betacoronavirus pandemicum") and
+are ambiguous. It's matched against the manifest's `species_taxid` or `taxid`
+for the hit's accession, so a strain/virus-level taxid matches too (e.g.
+`511145`, *E. coli* K-12, or `2697049`, SARS-CoV-2). sylph's output has no
+taxonomy, so `--species_id_manifest` is required whenever any sample has an
+`expected_taxid` - the run fails at startup without it. Collected into
 `${outdir}/species_id/species_check_summary.tsv`.
 
-**Validated** against `test_full`: all 4 samples `match` (including
-`ECOLI_WGS` given as taxid `562`). An `isolate` sample deliberately labelled
-with the wrong species comes back `mismatch`.
+**Validated** against `test_full`: all 4 samples `match` - the two
+SARS-CoV-2 samples deliberately use the virus-level (`2697049`) and
+species-level (`3418604`) taxids respectively, so both match paths are
+covered. An `isolate` sample deliberately labelled with the wrong taxid comes
+back `mismatch`; a hit missing from the manifest comes back `unresolved`.
 
 ### Reference genome
 
@@ -347,7 +353,7 @@ field - see the header row in `bin/build_sample_summary.py` for the exact
 columns.
 
 The sample manifest emitted by `READ_QC_AND_DEHOSTING` (sample, platform,
-sample_type, expected_species - straight from the samplesheet) is the only
+sample_type, expected_taxid - straight from the samplesheet) is the only
 required input and anchors which rows exist; every other stage's
 summary TSV is optional. If a stage was skipped (by flag, e.g.
 `--skip_reference_genome_fetch`) or simply produced nothing for this run
@@ -375,7 +381,7 @@ an error**.
 
 **Validated** against both `test` (2 synthetic samples, species check
 `no_hit` as expected) and `test_full` (4 real samples, all `match`ing their
-`expected_species`).
+`expected_taxid`).
 
 ## Testing strategy
 

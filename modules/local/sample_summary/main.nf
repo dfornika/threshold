@@ -7,7 +7,7 @@ process SAMPLE_SUMMARY {
         'quay.io/biocontainers/python:3.12' }"
 
     input:
-    path samples                     // sample manifest (sample, platform, sample_type, expected_species) - always present, anchors the row list
+    path samples                     // sample manifest (sample, platform, sample_type, expected_taxid) - always present, anchors the row list
     path dehost, stageAs: 'dehost_summary.tsv?'
     path species_check, stageAs: 'species_check_summary.tsv?'
     path assembly, stageAs: 'assembly_summary.tsv?'

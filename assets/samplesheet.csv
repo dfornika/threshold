@@ -1,2 +1,2 @@
-sample,fastq_1,fastq_2,platform,sample_type,expected_species,reference,genome_size
-SAMPLE-1,test_input/fastq/SAMPLE-1_S1_L001_R1_001.fastq.gz,test_input/fastq/SAMPLE-1_S1_L001_R2_001.fastq.gz,illumina,isolate,Escherichia coli,,
+sample,fastq_1,fastq_2,platform,sample_type,expected_taxid,reference,genome_size
+SAMPLE-1,test_input/fastq/SAMPLE-1_S1_L001_R1_001.fastq.gz,test_input/fastq/SAMPLE-1_S1_L001_R2_001.fastq.gz,illumina,isolate,562,,

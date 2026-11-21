@@ -30,14 +30,15 @@ status and known caveats.
    against a host reference (`--dehost_reference`); toggle with `--skip_dehosting`.
 3. **Species ID + check** — [`sylph`](https://github.com/bluenote-1577/sylph)
    against a reference-genome database (`--sylph_db`); the top hit is compared
-   with the samplesheet's `expected_species` and reported as `match` /
-   `mismatch` / `no_hit` / `not_checked`, to catch sample swaps, contamination
+   with the samplesheet's `expected_taxid` (an NCBI taxid, resolved via
+   `--species_id_manifest`) and reported as `match` / `mismatch` /
+   `unresolved` / `no_hit` / `not_checked`, to catch sample swaps, contamination
    and mislabelling. Skipped for `amplicon_16s` samples; toggle with
    `--skip_species_id`.
 4. **Reference genome** — for isolates: the samplesheet's `reference` (a local
    FASTA, or an NCBI assembly accession fetched via
    [`entrez-direct`](https://www.ncbi.nlm.nih.gov/books/NBK179288/)), else the
-   species-ID top hit when it agrees with `expected_species`. Fetched genomes
+   species-ID top hit when it agrees with `expected_taxid`. Fetched genomes
    are cached by accession across runs (`--reference_genome_cache_dir`); a
    fetch failure degrades gracefully. Toggle fetching with
    `--skip_reference_genome_fetch`.
@@ -61,8 +62,8 @@ First, prepare a samplesheet with your input data that looks as follows:
 `samplesheet.csv`:
 
 ```csv
-sample,fastq_1,fastq_2,platform,sample_type,expected_species,reference,genome_size
-ISOLATE_1,ISO1_S1_L001_R1_001.fastq.gz,ISO1_S1_L001_R2_001.fastq.gz,illumina,isolate,Escherichia coli,,
+sample,fastq_1,fastq_2,platform,sample_type,expected_taxid,reference,genome_size
+ISOLATE_1,ISO1_S1_L001_R1_001.fastq.gz,ISO1_S1_L001_R2_001.fastq.gz,illumina,isolate,562,,
 ISOLATE_2,ISO2.fastq.gz,,nanopore,isolate,1280,GCF_002310435.1,
 GUT_1,GUT1_R1.fastq.gz,GUT1_R2.fastq.gz,illumina,metagenomic,,,
 ```
@@ -70,7 +71,9 @@ GUT_1,GUT1_R1.fastq.gz,GUT1_R2.fastq.gz,illumina,metagenomic,,,
 Each row is one FASTQ file (single-end) or a pair of FASTQ files (paired-end).
 `platform` (`illumina` / `nanopore`) and `sample_type` (`isolate` /
 `metagenomic` / `amplicon_16s` / `amplicon_other`) are required; the rest are
-optional. See [`docs/usage.md`](docs/usage.md) for details.
+optional. `expected_taxid` is an NCBI taxid (names aren't accepted); checking it
+needs `--species_id_manifest`, which maps the sylph database's accessions to
+NCBI taxids. See [`docs/usage.md`](docs/usage.md) for details.
 
 Now, you can run the pipeline using:
 
@@ -79,6 +82,7 @@ nextflow run BCCDC-PHL/gx-threshold \
    -profile <conda/docker/singularity/apptainer> \
    --input samplesheet.csv \
    --sylph_db <db.syldb> \
+   --species_id_manifest <manifest.csv> \
    --dehost_reference <host.fasta> \
    --outdir <OUTDIR>
 ```

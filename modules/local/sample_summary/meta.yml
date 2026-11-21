@@ -12,7 +12,7 @@ tools:
 input:
   - - samples:
         type: file
-        description: Sample manifest (sample, platform, sample_type, expected_species) - always present, anchors which rows exist regardless of which stages ran
+        description: Sample manifest (sample, platform, sample_type, expected_taxid) - always present, anchors which rows exist regardless of which stages ran
   - - dehost:
         type: file
         description: Optional. dehost_summary.tsv from READ_QC_AND_DEHOSTING

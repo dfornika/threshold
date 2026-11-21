@@ -1,5 +1,5 @@
-sample,fastq_1,fastq_2,platform,sample_type,expected_species,reference,genome_size
-KPNEUMONIAE_WGS,tests/data/real/reads/illumina/KPNEUMONIAE_WGS_R1.fastq.gz,tests/data/real/reads/illumina/KPNEUMONIAE_WGS_R2.fastq.gz,illumina,isolate,Klebsiella pneumoniae,,
+sample,fastq_1,fastq_2,platform,sample_type,expected_taxid,reference,genome_size
+KPNEUMONIAE_WGS,tests/data/real/reads/illumina/KPNEUMONIAE_WGS_R1.fastq.gz,tests/data/real/reads/illumina/KPNEUMONIAE_WGS_R2.fastq.gz,illumina,isolate,573,,
 ECOLI_WGS,tests/data/real/reads/illumina/ECOLI_WGS_R1.fastq.gz,tests/data/real/reads/illumina/ECOLI_WGS_R2.fastq.gz,illumina,isolate,562,,
-SARS2_AMPLICON_ILLUMINA,tests/data/real/reads/illumina/SARS2_AMPLICON_ILLUMINA_R1.fastq.gz,tests/data/real/reads/illumina/SARS2_AMPLICON_ILLUMINA_R2.fastq.gz,illumina,amplicon_other,Severe acute respiratory syndrome coronavirus 2,,
-SARS2_AMPLICON_ONT,tests/data/real/reads/nanopore/SARS2_AMPLICON_ONT.fastq.gz,,nanopore,amplicon_other,Severe acute respiratory syndrome coronavirus 2,,
+SARS2_AMPLICON_ILLUMINA,tests/data/real/reads/illumina/SARS2_AMPLICON_ILLUMINA_R1.fastq.gz,tests/data/real/reads/illumina/SARS2_AMPLICON_ILLUMINA_R2.fastq.gz,illumina,amplicon_other,2697049,,
+SARS2_AMPLICON_ONT,tests/data/real/reads/nanopore/SARS2_AMPLICON_ONT.fastq.gz,,nanopore,amplicon_other,3418604,,

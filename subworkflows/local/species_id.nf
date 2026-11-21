@@ -1,7 +1,7 @@
 //
 // Species identification + check against the samplesheet: sylph profiles
 // each sample against the reference-genome database, then SPECIES_CHECK
-// compares the top hit with the samplesheet's `expected_species`. What a
+// compares the top hit with the samplesheet's `expected_taxid`. What a
 // sample *is* comes from the samplesheet; this stage is there to catch
 // sample swaps, contamination and mislabelling.
 //
@@ -46,8 +46,8 @@ workflow SPECIES_ID {
             .collectFile(
                 name: 'species_check_summary.tsv',
                 storeDir: "${outdir}/species_id",
-                sort: true,
-                seed: "sample\tplatform\tverdict\texpected_species\taccession\tspecies_taxid\tspecies_name\tadjusted_ani\ttaxonomic_abundance\tn_hits\n"
+                sort: { file -> file.name },   // by file name (= sample), not full work-dir path, so row order is stable across runs
+                seed: "sample\tplatform\tverdict\texpected_taxid\taccession\tspecies_taxid\tspecies_name\tadjusted_ani\ttaxonomic_abundance\tn_hits\n"
             )
             .ifEmpty([])
     }

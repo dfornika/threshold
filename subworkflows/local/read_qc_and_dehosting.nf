@@ -47,12 +47,12 @@ workflow READ_QC_AND_DEHOSTING {
     // of which optional stages ran later.
     //
     def ch_sample_manifest = ch_reads
-        .map { meta, _reads -> "${meta.id}\t${meta.platform}\t${meta.sample_type}\t${meta.expected_species ?: 'NA'}" }
+        .map { meta, _reads -> "${meta.id}\t${meta.platform}\t${meta.sample_type}\t${meta.expected_taxid ?: 'NA'}" }
         .collectFile(
             name: 'sample_manifest.tsv',
             storeDir: "${outdir}/pipeline_info",
             sort: true,
-            seed: "sample\tplatform\tsample_type\texpected_species\n",
+            seed: "sample\tplatform\tsample_type\texpected_taxid\n",
             newLine: true
         )
 
@@ -110,7 +110,7 @@ workflow READ_QC_AND_DEHOSTING {
             .collectFile(
                 name: 'dehost_summary.tsv',
                 storeDir: "${outdir}/dehost",
-                sort: true,
+                sort: { file -> file.name },   // by file name (= sample), not full work-dir path, so row order is stable across runs
                 seed: "sample\tplatform\tinput_reads\thost_reads\tdehosted_reads\tpercent_host\n"
             )
             .ifEmpty([])
@@ -137,6 +137,6 @@ workflow READ_QC_AND_DEHOSTING {
     emit:
     reads          = ch_clean_reads     // tuple(meta, reads) - trimmed + dehosted, ready for downstream analysis
     multiqc_files  = ch_multiqc_files
-    sample_manifest = ch_sample_manifest // path - sample, platform, sample_type, expected_species - anchor row list for SAMPLE_SUMMARY
+    sample_manifest = ch_sample_manifest // path - sample, platform, sample_type, expected_taxid - anchor row list for SAMPLE_SUMMARY
     dehost_summary  = ch_dehost_summary  // path (or []) - for SAMPLE_SUMMARY
 }

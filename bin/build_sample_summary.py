@@ -8,7 +8,7 @@ at-a-glance table across stages.
 Every stage input is optional: if a stage was skipped (or never reached a
 given sample, e.g. assembly only runs for isolates), its columns are "NA" for
 that row rather than the row being dropped - `--samples` (the samplesheet's
-sample, platform, sample_type, expected_species) always determines which rows
+sample, platform, sample_type, expected_taxid) always determines which rows
 exist.
 """
 
@@ -22,7 +22,7 @@ HEADER = [
     "sample",
     "platform",
     "sample_type",
-    "expected_species",
+    "expected_taxid",
     "dehost_percent_host",
     "species_check",
     "observed_species_name",
@@ -54,7 +54,7 @@ def index_by_sample(rows):
 
 def main():
     ap = argparse.ArgumentParser(description=__doc__)
-    ap.add_argument("--samples", required=True, help="sample, platform, sample_type, expected_species - the anchor row list")
+    ap.add_argument("--samples", required=True, help="sample, platform, sample_type, expected_taxid - the anchor row list")
     ap.add_argument("--dehost")
     ap.add_argument("--species-check")
     ap.add_argument("--assembly")
@@ -79,7 +79,7 @@ def main():
                 "sample": sample,
                 "platform": row["platform"],
                 "sample_type": row["sample_type"],
-                "expected_species": row["expected_species"],
+                "expected_taxid": row["expected_taxid"],
                 "dehost_percent_host": d.get("percent_host", NA),
                 "species_check": sc.get("verdict", NA),
                 "observed_species_name": sc.get("species_name", NA),

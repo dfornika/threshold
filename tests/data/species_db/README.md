@@ -108,7 +108,7 @@ It's now the only species-ID tool in the pipeline.
 `SYLPH_PROFILE` profiles each sample (except `amplicon_16s` samples) against
 `--sylph_db`, then `SPECIES_CHECK` (`modules/local/species_check/`,
 `bin/check_species.py`) compares the top hit with the samplesheet's
-`expected_species` - collected into `${outdir}/species_id/species_check_summary.tsv`.
+`expected_taxid` - collected into `${outdir}/species_id/species_check_summary.tsv`.
 `--species_id_manifest` (both `test` and `test_full` point it at `manifest.csv` in
-this directory) resolves accessions to species name / taxid so the match works on
-either; without it, a name is matched against sylph's contig name instead.
+this directory) resolves accessions to `taxid` / `species_taxid`; it's required
+whenever a sample has an `expected_taxid`.

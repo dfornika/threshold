@@ -229,11 +229,11 @@
             "title": "Species ID, reference and assembly options",
             "type": "object",
             "fa_icon": "fas fa-microscope",
-            "description": "Species identification (sylph) checked against the samplesheet's expected_species, per-isolate reference genome, and draft assembly of isolates.",
+            "description": "Species identification (sylph) checked against the samplesheet's expected_taxid, per-isolate reference genome, and draft assembly of isolates.",
             "properties": {
                 "skip_species_id": {
                     "type": "boolean",
-                    "description": "Skip species identification (sylph) and the check against the samplesheet's expected_species.",
+                    "description": "Skip species identification (sylph) and the check against the samplesheet's expected_taxid.",
                     "fa_icon": "fas fa-forward"
                 },
                 "sylph_db": {
@@ -245,7 +245,7 @@
                 "species_id_manifest": {
                     "type": "string",
                     "format": "file-path",
-                    "description": "Optional CSV (accession,organism,...,taxid,species_taxid,species_name) mapping reference genome accessions to taxonomy. Used to match sylph hits against the samplesheet's expected_species; without it, matching falls back to the hit's FASTA header.",
+                    "description": "CSV (accession,...,taxid,species_taxid,species_name) mapping reference genome accessions to NCBI taxonomy. Required when any sample has an expected_taxid, since sylph's own output carries no taxonomy; also gives readable species names in the output.",
                     "fa_icon": "fas fa-table"
                 },
                 "skip_reference_genome_fetch": {
