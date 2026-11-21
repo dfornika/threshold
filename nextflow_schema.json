@@ -280,6 +280,19 @@
                     "description": "CheckM2 DIAMOND database (assembly completeness + contamination). Optional external download - when unset, those columns are reported as NA and only QUAST contiguity metrics are produced.",
                     "fa_icon": "fas fa-database"
                 },
+                "skip_speccheck": {
+                    "type": "boolean",
+                    "description": "Skip species-specific QC thresholds (speccheck, including QualiBact thresholds) for assembled isolates.",
+                    "fa_icon": "fas fa-forward"
+                },
+                "speccheck_criteria": {
+                    "type": "string",
+                    "format": "file-path",
+                    "exists": true,
+                    "mimetype": "text/csv",
+                    "description": "Optional custom speccheck criteria CSV. By default speccheck uses its bundled criteria (QualiBact species thresholds plus generic rules).",
+                    "fa_icon": "fas fa-file-csv"
+                },
                 "default_genome_size": {
                     "type": "integer",
                     "default": 5000000,

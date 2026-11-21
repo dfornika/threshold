@@ -40,6 +40,9 @@ HEADER = [
     "assembly_contamination",
     "assembly_features_complete",
     "assembly_features_partial",
+    "speccheck_overall_qc",
+    "speccheck_qualibact_qc",
+    "speccheck_reasons",
 ]
 
 
@@ -54,18 +57,28 @@ def index_by_sample(rows):
     return {row["sample"]: row for row in rows}
 
 
+def load_speccheck(path):
+    """speccheck's summary report.csv - comma-separated, keyed by sample_id."""
+    if not path:
+        return {}
+    with open(path) as fh:
+        return {row["sample_id"]: row for row in csv.DictReader(fh)}
+
+
 def main():
     ap = argparse.ArgumentParser(description=__doc__)
     ap.add_argument("--samples", required=True, help="sample, platform, sample_type, expected_taxid - the anchor row list")
     ap.add_argument("--dehost")
     ap.add_argument("--species-check")
     ap.add_argument("--assembly")
+    ap.add_argument("--speccheck", help="speccheck report.csv (comma-separated, keyed by sample_id)")
     args = ap.parse_args()
 
     samples = load_rows(args.samples)
     dehost = index_by_sample(load_rows(args.dehost))
     species_check = index_by_sample(load_rows(args.species_check))
     assembly = index_by_sample(load_rows(args.assembly))
+    speccheck = load_speccheck(args.speccheck)
 
     writer = csv.DictWriter(sys.stdout, fieldnames=HEADER)
     writer.writeheader()
@@ -75,6 +88,7 @@ def main():
         d = dehost.get(sample, {})
         sc = species_check.get(sample, {})
         asm = assembly.get(sample, {})
+        sc_qc = speccheck.get(sample, {})
 
         writer.writerow(
             {
@@ -99,6 +113,9 @@ def main():
                 "assembly_contamination": asm.get("contamination", NA),
                 "assembly_features_complete": asm.get("features_complete", NA),
                 "assembly_features_partial": asm.get("features_partial", NA),
+                "speccheck_overall_qc": sc_qc.get("overall_qc") or NA,
+                "speccheck_qualibact_qc": sc_qc.get("qualibact_qc") or NA,
+                "speccheck_reasons": sc_qc.get("reason_summary") or NA,
             }
         )
 

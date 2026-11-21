@@ -367,6 +367,55 @@ Illumina assembly-quality check needs a deeper subsample; the target read count
 in `data/download_and_subsample.py`'s `MANIFEST` can simply be bumped for a
 dedicated deeper fixture. The ONT isolates are adequate as-is.
 
+### Species-specific QC thresholds (speccheck)
+
+`SPECCHECK` (`subworkflows/local/speccheck.nf`) runs
+[speccheck](https://gitlab.com/cgps/tools/speccheck) 1.3.0, which reads QC
+outputs the pipeline already produces and checks them against criteria for
+the sample's species and assembly type (`short` for Illumina, `long` for
+Nanopore). Its bundled criteria include the QualiBact species thresholds
+(mostly CheckM2- and QUAST-derived: genome size, GC, N50, contig count,
+completeness, contamination, coding sequences), plus sylph species/purity
+checks and a generic fastp Q30 rule.
+
+- **Inputs:** QUAST `report.tsv`, the sylph profile, fastp JSON (Illumina
+  only; speccheck doesn't parse fastplong) and, with `--checkm2_db`, the
+  CheckM2 quality report. Metrics from a tool that didn't run are skipped,
+  not flagged - checked with no CheckM2 report: its rows are blank, not
+  `NOT_EVALUATED`.
+- **Samples:** only those with a QUAST report (assembled isolates). An isolate
+  whose assembly failed isn't checked, rather than getting a PASS from
+  read-level checks alone.
+- **Species:** the NCBI species name from `SPECIES_CHECK` when its verdict is
+  `match` or `not_checked`; skipped with a warning for `mismatch` /
+  `unresolved` / `no_hit`. The name is passed as `--organism` *and* as a
+  `species` metadata column: speccheck's QualiBact compatibility check
+  (`--qualibact-compat`) reads the species from a column, and without one it
+  falls back to *E. coli* thresholds - first seen as an *E. coli* verdict for
+  a *K. pneumoniae* sample.
+- **Outputs:** per-sample CSVs in `${outdir}/speccheck/samples/`, speccheck's
+  `report.csv` / `report.full.csv` / `report.html` in `${outdir}/speccheck/`,
+  and `speccheck_overall_qc`, `speccheck_qualibact_qc`, `speccheck_reasons` in
+  `sample_summary.csv`.
+- **Failures** retry, then are skipped for that sample (its speccheck columns
+  are `NA`), like assembly.
+
+**Container:** a Seqera community container built from the modules'
+`environment.yml` (`speccheck-qc==1.3.0` from PyPI plus `procps-ng`), not the
+upstream `happykhan/speccheck:1.3.0` image. That image has no `ps`, which
+Nextflow's task wrapper requires inside containers whenever
+trace/timeline/report is enabled (the default): tasks exited 1 with "Command
+'ps' required by nextflow to collect task metrics cannot be found".
+
+**Validated** with `-profile test_full,dev,apptainer` + assembly + reference
+fetching, execution reports on (the Seqera container, pulled via `oras://`;
+its Docker build also checked for `ps` and speccheck 1.3.0): two assembled
+*K. pneumoniae* samples (`match`, `not_checked`) were checked - `FAIL` against
+the *K. pneumoniae* thresholds (GC >= 55.89, length >= 4.9 Mb; expected for a
+3.5 kb test assembly), QualiBact scheme "Klebsiella pneumoniae"; a `mismatch`
+sample was skipped with a warning; a failed-assembly isolate and an amplicon
+sample weren't checked.
+
 ### Sample summary
 
 `SAMPLE_SUMMARY` (`modules/local/sample_summary/`,

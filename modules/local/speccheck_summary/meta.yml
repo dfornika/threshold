@@ -1,0 +1,38 @@
+name: "speccheck_summary"
+description: Merge per-sample speccheck results into speccheck's report, adding a QualiBact-compatibility verdict
+keywords:
+  - qc
+  - thresholds
+  - qualibact
+  - report
+tools:
+  - "speccheck":
+      description: Quality control based on species criteria
+      homepage: https://gitlab.com/cgps/tools/speccheck
+      documentation: https://github.com/happykhan/speccheck/tree/main/docs
+      licence: ["GPL-3.0"]
+
+input:
+  - collected:
+      type: file
+      description: Per-sample CSVs from SPECCHECK_COLLECT
+      pattern: "*.speccheck.csv"
+
+output:
+  - report:
+      - "speccheck_report/report.csv":
+          type: file
+          description: Compact merged result - sample_id, overall_qc, speccheck_qc, qualibact_qc, reason_summary, key metrics
+  - report_full:
+      - "speccheck_report/report.full.csv":
+          type: file
+          description: Full table - parser metrics, metadata and provenance
+  - html:
+      - "speccheck_report/report.html":
+          type: file
+          description: Interactive review report
+
+authors:
+  - "@dfornika"
+maintainers:
+  - "@dfornika"

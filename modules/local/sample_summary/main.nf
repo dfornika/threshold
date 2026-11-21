@@ -11,6 +11,7 @@ process SAMPLE_SUMMARY {
     path dehost, stageAs: 'dehost_summary.tsv?'
     path species_check, stageAs: 'species_check_summary.tsv?'
     path assembly, stageAs: 'assembly_summary.tsv?'
+    path speccheck, stageAs: 'speccheck_report.csv?'
 
     output:
     path "sample_summary.csv", emit: summary
@@ -22,12 +23,14 @@ process SAMPLE_SUMMARY {
     def dehost_arg        = dehost        ? "--dehost ${dehost}"               : ''
     def species_check_arg = species_check ? "--species-check ${species_check}" : ''
     def assembly_arg      = assembly      ? "--assembly ${assembly}"           : ''
+    def speccheck_arg     = speccheck     ? "--speccheck ${speccheck}"         : ''
     """
     build_sample_summary.py \\
         --samples ${samples} \\
         ${dehost_arg} \\
         ${species_check_arg} \\
         ${assembly_arg} \\
+        ${speccheck_arg} \\
         > sample_summary.csv
     """
 

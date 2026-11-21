@@ -139,4 +139,5 @@ workflow READ_QC_AND_DEHOSTING {
     multiqc_files  = ch_multiqc_files
     sample_manifest = ch_sample_manifest // path - sample, platform, sample_type, expected_taxid - anchor row list for SAMPLE_SUMMARY
     dehost_summary  = ch_dehost_summary  // path (or []) - for SAMPLE_SUMMARY
+    fastp_json      = fastp_final_qc_out.json // tuple(meta, json) - fastp report on the final (trimmed + dehosted) Illumina reads
 }
