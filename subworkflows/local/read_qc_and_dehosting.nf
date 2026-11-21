@@ -47,12 +47,12 @@ workflow READ_QC_AND_DEHOSTING {
     // of which optional stages ran later.
     //
     def ch_sample_manifest = ch_reads
-        .map { meta, _reads -> "${meta.id}\t${meta.platform}\t${meta.sample_type}\t${meta.expected_taxid ?: 'NA'}" }
+        .map { meta, _reads -> "${meta.id}\t${meta.platform}\t${meta.sample_type}\t${meta.expected_taxid ?: 'NA'}\t${meta.project_id ?: 'NA'}\t${meta.tags ?: 'NA'}" }
         .collectFile(
             name: 'sample_manifest.tsv',
             storeDir: "${outdir}/pipeline_info",
             sort: true,
-            seed: "sample\tplatform\tsample_type\texpected_taxid\n",
+            seed: "sample\tplatform\tsample_type\texpected_taxid\tproject_id\ttags\n",
             newLine: true
         )
 
@@ -60,7 +60,7 @@ workflow READ_QC_AND_DEHOSTING {
     // MODULE: Run FastQC on the raw input reads.
     //
     def fastqc_raw_out = FASTQC_RAW(ch_reads)
-    ch_multiqc_files = ch_multiqc_files.mix(fastqc_raw_out.zip.map{ _meta, file -> file })
+    ch_multiqc_files = ch_multiqc_files.mix(fastqc_raw_out.zip)
 
     //
     // Split reads by platform for platform-specific trimming/QC tools.
@@ -74,13 +74,13 @@ workflow READ_QC_AND_DEHOSTING {
     // MODULE: Run fastp on Illumina paired-end reads
     //
     def fastp_trim_out = FASTP_TRIM(ch_reads_by_platform.short_reads.map { meta, reads -> tuple(meta, reads, []) }, false, false, false)
-    ch_multiqc_files = ch_multiqc_files.mix(fastp_trim_out.json.map{ _meta, file -> file })
+    ch_multiqc_files = ch_multiqc_files.mix(fastp_trim_out.json)
 
     //
     // MODULE: Run fastplong on Nanopore single-end reads
     //
     def fastplong_trim_out = FASTPLONG_TRIM(ch_reads_by_platform.long_reads, [], false, false)
-    ch_multiqc_files = ch_multiqc_files.mix(fastplong_trim_out.json.map{ _meta, file -> file })
+    ch_multiqc_files = ch_multiqc_files.mix(fastplong_trim_out.json)
 
     //
     // Recombine platform-specific trimmed reads into single channels.
@@ -101,7 +101,7 @@ workflow READ_QC_AND_DEHOSTING {
         def ch_host_reference = channel.value(file(params.dehost_reference, checkIfExists: true))
         def dehost_out = DEHOST(ch_trimmed, ch_host_reference, params.dehost_scrub_headers)
         ch_clean_reads = dehost_out.reads
-        ch_multiqc_files = ch_multiqc_files.mix(dehost_out.stats.map { _meta, file -> file })
+        ch_multiqc_files = ch_multiqc_files.mix(dehost_out.stats)
 
         // .ifEmpty([]): see subworkflows/local/species_id.nf for why -
         // collectFile emits nothing at all if its input is completely empty.
@@ -121,7 +121,7 @@ workflow READ_QC_AND_DEHOSTING {
     // see the measurement-only note above.
     //
     def fastqc_final_out = FASTQC_FINAL(ch_clean_reads)
-    ch_multiqc_files = ch_multiqc_files.mix(fastqc_final_out.zip.map{ _meta, file -> file })
+    ch_multiqc_files = ch_multiqc_files.mix(fastqc_final_out.zip)
 
     def ch_clean_reads_by_platform = ch_clean_reads.branch { meta, _reads ->
         long_reads:  meta.platform == 'nanopore'
@@ -129,15 +129,15 @@ workflow READ_QC_AND_DEHOSTING {
     }
 
     def fastp_final_qc_out = FASTP_FINAL_QC(ch_clean_reads_by_platform.short_reads.map { meta, reads -> tuple(meta, reads, []) }, true, false, false)
-    ch_multiqc_files = ch_multiqc_files.mix(fastp_final_qc_out.json.map{ _meta, file -> file })
+    ch_multiqc_files = ch_multiqc_files.mix(fastp_final_qc_out.json)
 
     def fastplong_final_qc_out = FASTPLONG_FINAL_QC(ch_clean_reads_by_platform.long_reads, [], true, false)
-    ch_multiqc_files = ch_multiqc_files.mix(fastplong_final_qc_out.json.map{ _meta, file -> file })
+    ch_multiqc_files = ch_multiqc_files.mix(fastplong_final_qc_out.json)
 
     emit:
     reads          = ch_clean_reads     // tuple(meta, reads) - trimmed + dehosted, ready for downstream analysis
-    multiqc_files  = ch_multiqc_files
-    sample_manifest = ch_sample_manifest // path - sample, platform, sample_type, expected_taxid - anchor row list for SAMPLE_SUMMARY
+    multiqc_files  = ch_multiqc_files   // tuple(meta, file) - per-sample MultiQC inputs, with meta for per-group reports
+    sample_manifest = ch_sample_manifest // path - sample, platform, sample_type, expected_taxid, project_id, tags - anchor row list for SAMPLE_SUMMARY
     dehost_summary  = ch_dehost_summary  // path (or []) - for SAMPLE_SUMMARY
     fastp_json      = fastp_final_qc_out.json // tuple(meta, json) - fastp report on the final (trimmed + dehosted) Illumina reads
 }

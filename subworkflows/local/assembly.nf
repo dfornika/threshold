@@ -146,7 +146,7 @@ workflow ASSEMBLY_ANALYSIS {
                 gff:       tuple(meta, (reference && gff) ? gff : [])
             }
         def quast_out = QUAST(ch_quast_in.assembly, ch_quast_in.reference, ch_quast_in.gff)
-        ch_multiqc_files = ch_multiqc_files.mix(quast_out.tsv.map { _meta, file -> file })
+        ch_multiqc_files = ch_multiqc_files.mix(quast_out.tsv)
         ch_quast_report = quast_out.tsv
 
         //
@@ -159,7 +159,7 @@ workflow ASSEMBLY_ANALYSIS {
             def checkm2_predict_out = CHECKM2_PREDICT(ch_assembly.map { meta, fa -> tuple(meta, fa) }, ch_checkm2_db)
             ch_checkm2 = checkm2_predict_out.checkm2_tsv
             ch_checkm2_report = ch_checkm2
-            ch_multiqc_files = ch_multiqc_files.mix(checkm2_predict_out.checkm2_tsv.map { _meta, file -> file })
+            ch_multiqc_files = ch_multiqc_files.mix(checkm2_predict_out.checkm2_tsv)
         }
 
         //
@@ -191,7 +191,7 @@ workflow ASSEMBLY_ANALYSIS {
     }
 
     emit:
-    multiqc_files     = ch_multiqc_files
+    multiqc_files     = ch_multiqc_files   // tuple(meta, file) - per-sample MultiQC inputs, with meta for per-group reports
     assembly_summary  = ch_assembly_summary // path (or []) - for SAMPLE_SUMMARY
     quast_report      = ch_quast_report     // tuple(meta, report.tsv) - one per assembled sample; empty if assembly is skipped
     checkm2_report    = ch_checkm2_report   // tuple(meta, quality_report.tsv) - only when --checkm2_db is set

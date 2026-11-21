@@ -28,8 +28,10 @@ The pipeline does not try to infer what kind of library each sample is - it take
 | `expected_taxid` | no       | NCBI taxid (e.g. `562` for _Escherichia coli_) the sample should contain - species level, or a strain/virus-level taxid. Names are not accepted. The species-ID result is checked against it (`match` / `mismatch` / `unresolved`); without it, the top hit is just reported (`not_checked`). Needs `--species_id_manifest`. |
 | `reference`      | no       | Reference genome for an isolate: an NCBI assembly accession (`GCF_...` / `GCA_...`, fetched and cached) or a path to a local FASTA. Without it, the species-ID top hit's genome is used when it agrees with `expected_taxid`.                                                                                                |
 | `genome_size`    | no       | Expected genome size in bp, passed to the assembler. Without it, the reference genome's length (or a per-species lookup, or `--default_genome_size`) is used.                                                                                                                                                                |
+| `project_id`     | no       | Project the sample belongs to (letters, numbers, `_`, `-`, `.`). Samples sharing a `project_id` get their own MultiQC report and `sample_summary.csv` (see [Per-group reports](#per-group-reports)).                                                                                                                         |
+| `tags`           | no       | Free-form labels, colon-separated (e.g. `rerun:validation`), the same format as nf-core/seqinspector. Each tag gets its own report and summary.                                                                                                                                                                              |
 
-Every column describes the sample, not the run, so all rows for the same `sample` must agree on `platform`, `sample_type`, `expected_taxid`, `reference` and `genome_size`.
+Every column describes the sample, not the run, so all rows for the same `sample` must agree on `platform`, `sample_type`, `expected_taxid`, `reference`, `genome_size`, `project_id` and `tags`.
 
 ### Multiple runs of the same sample
 
@@ -219,6 +221,24 @@ In most cases, you will only need to create a custom config as a one-off but if 
 See the main [Nextflow documentation](https://www.nextflow.io/docs/latest/config.html) for more information about creating your own configuration files.
 
 If you have any questions or issues please send us a message on [Slack](https://nf-co.re/join/slack) on the [`#configs` channel](https://nfcore.slack.com/channels/configs).
+
+### Per-group reports
+
+Besides the all-samples MultiQC report (`multiqc/`) and `sample_summary.csv`, the pipeline writes a MultiQC report and a `sample_summary.csv` for each group of samples, in `groups/<field>/<value>/`:
+
+```
+groups/
+  project_id/
+    covid-19/
+      project_id-covid-19_multiqc_report.html
+      sample_summary.csv
+  tags/
+    rerun/
+      tags-rerun_multiqc_report.html
+      sample_summary.csv
+```
+
+`--multiqc_group_by` chooses the samplesheet fields to group by: a comma-separated list of `project_id`, `tags`, `sample_type` and `platform` (default `project_id,tags`). Each of a sample's tags is its own group, so a sample can appear in several. Samples with no value for a field are in no group for it, so samplesheets without `project_id` or `tags` get no `groups/` directory. Set `--multiqc_group_by ''` (or `multiqc_group_by: ""` in a `-params-file`) to turn per-group reports off.
 
 ### Temporary files (`TMPDIR`)
 

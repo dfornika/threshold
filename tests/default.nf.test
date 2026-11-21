@@ -31,6 +31,10 @@ nextflow_pipeline {
                 // pipeline files nf-prov's RO-Crate copies into outdir; their
                 // content changes with every edit, so keep them out entirely
                 '{README.md,main.nf,nextflow.config,nextflow_schema.json,ro-crate-metadata.json}',
+                // per-group MultiQC internals: file names vary with the MultiQC
+                // version; the group reports' names and sample_summary.csv
+                // contents are what check the grouping
+                'groups/**/*_multiqc_report_{data,plots}/**',
             ])
             // stable_content: All files in ${params.outdir}/ with stable content
             def stable_content = getAllFilesFromDir(params.outdir, ignoreFile: 'tests/.nftignore')

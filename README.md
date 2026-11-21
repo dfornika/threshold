@@ -58,7 +58,11 @@ status and known caveats.
    FAIL with reasons. Runs only when the species check agrees with the
    samplesheet (or there was no expected taxid). Toggle with `--skip_speccheck`;
    custom criteria via `--speccheck_criteria`.
-8. **Provenance** — the pipeline's `nf-bccdc-provenance` plugin writes
+8. **Reports** — an all-samples [MultiQC](http://multiqc.info/) report and
+   `sample_summary.csv`, plus one of each per project and per tag (optional
+   `project_id` / `tags` samplesheet columns; `--multiqc_group_by`) in
+   `groups/<field>/<value>/`.
+9. **Provenance** — the pipeline's `nf-bccdc-provenance` plugin writes
    [BCCDC-PHL pipeline provenance](https://github.com/BCCDC-PHL/pipeline-provenance-schema)
    records to `provenance/`: one `<sample>_provenance.yml` per sample (inputs
    with `sha256`, each process with its tool versions, parameters and
@@ -83,6 +87,8 @@ GUT_1,GUT1_R1.fastq.gz,GUT1_R2.fastq.gz,illumina,metagenomic,,,
 ```
 
 Each row is one FASTQ file (single-end) or a pair of FASTQ files (paired-end).
+Optional `project_id` and `tags` (colon-separated) columns group samples into
+per-project / per-tag reports.
 `platform` (`illumina` / `nanopore`) and `sample_type` (`isolate` /
 `metagenomic` / `amplicon_16s` / `amplicon_other`) are required; the rest are
 optional. `expected_taxid` is an NCBI taxid (names aren't accepted); checking it

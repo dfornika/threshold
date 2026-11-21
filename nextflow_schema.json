@@ -43,6 +43,14 @@
                     "help_text": "Set this parameter to your e-mail address to get a summary e-mail with details of the run sent to you when the workflow exits. If set in your user config file (`~/.nextflow/config`) then you don't need to specify this on the command line for every run.",
                     "pattern": "^([a-zA-Z0-9_\\-\\.]+)@([a-zA-Z0-9_\\-\\.]+)\\.([a-zA-Z]{2,5})$"
                 },
+                "multiqc_group_by": {
+                    "type": "string",
+                    "default": "project_id,tags",
+                    "pattern": "^((project_id|tags|sample_type|platform)(,(project_id|tags|sample_type|platform))*)?$",
+                    "description": "Also write a MultiQC report and sample_summary.csv per value of these samplesheet fields, under groups/<field>/<value>/.",
+                    "help_text": "Comma-separated list of project_id, tags, sample_type and/or platform. Each tag in a sample's colon-separated tags is its own group. Samples with no value for a field are in no group for it. The all-samples report and sample_summary.csv are always written. Set to an empty string to turn per-group reports off.",
+                    "fa_icon": "fas fa-layer-group"
+                },
                 "multiqc_title": {
                     "type": "string",
                     "description": "MultiQC report title. Printed as page header, used for filename if not otherwise specified.",

@@ -35,7 +35,7 @@ workflow SPECIES_ID {
 
         def sylph_profile_out = SYLPH_PROFILE(ch_to_profile, ch_sylph_db)
         ch_sylph_profile = sylph_profile_out.profile_out
-        ch_multiqc_files = ch_multiqc_files.mix(sylph_profile_out.profile_out.map { _meta, file -> file })
+        ch_multiqc_files = ch_multiqc_files.mix(sylph_profile_out.profile_out)
 
         def species_check_out = SPECIES_CHECK(sylph_profile_out.profile_out, ch_species_id_manifest)
         ch_species_check = species_check_out.result
@@ -57,6 +57,6 @@ workflow SPECIES_ID {
     emit:
     species_check         = ch_species_check          // tuple(meta, species_check.tsv) - one per profiled sample
     species_check_summary = ch_species_check_summary  // path (or []) - for SAMPLE_SUMMARY
-    multiqc_files         = ch_multiqc_files
+    multiqc_files         = ch_multiqc_files   // tuple(meta, file) - per-sample MultiQC inputs, with meta for per-group reports
     sylph_profile         = ch_sylph_profile          // tuple(meta, profile.tsv) - empty channel if species ID is skipped
 }

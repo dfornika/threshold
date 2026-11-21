@@ -21,3 +21,6 @@ README.md
 fastp/*.log
 fastplong/*.log
 provenance/*.yml
+groups/**/*_multiqc_report.html
+groups/**/*_multiqc_report_data/**
+groups/**/*_multiqc_report_plots/**
