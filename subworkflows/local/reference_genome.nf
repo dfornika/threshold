@@ -37,17 +37,24 @@ workflow REFERENCE_GENOME {
         .map { meta, _reads -> tuple(meta.id, meta) }
 
     // Observed accession from the species check, only where it's consistent
-    // with the samplesheet. Join by meta.id, never on the whole meta map:
-    // meta maps captured at different points need not be identical.
+    // with the samplesheet - and only if it really is an assembly accession:
+    // it comes from a database file name, so it's never treated as a path
+    // (only the samplesheet's `reference` column can be a path). Join by
+    // meta.id, never on the whole meta map: meta maps captured at different
+    // points need not be identical.
     def ch_observed = ch_species_check.map { meta, file ->
         def cols = file.text.trim().split('\t')
-        tuple(meta.id, (cols[2] in ['match', 'not_checked'] && cols[4] != 'NA') ? cols[4] : null)
+        def consistent = cols[2] in ['match', 'not_checked']
+        if (meta.sample_type == 'isolate' && !params.skip_assembly && consistent && cols[4] != 'NA' && !isAssemblyAccession(cols[4])) {
+            log.warn("${meta.id}: species-ID top hit '${cols[4]}' isn't an NCBI assembly accession, so no reference will be fetched for it")
+        }
+        tuple(meta.id, (consistent && isAssemblyAccession(cols[4])) ? cols[4] : null)
     }
 
     def ch_source = ch_isolates
         .join(ch_observed, remainder: true)
         .filter { entry -> entry[1] != null }   // drop species-check rows for non-isolates
-        .map { _id, meta, observed -> tuple(meta, meta.reference ?: observed) }
+        .map { _id, meta, observed -> tuple(meta, meta.reference ? meta.reference.toString() : observed) }
         .branch { _meta, reference ->
             none:      !reference
             accession: isAssemblyAccession(reference)
