@@ -7,72 +7,73 @@ process FETCH_REFERENCE_GENOME {
     storeDir "${params.reference_genome_cache_dir}/${accession}"
 
     conda "${moduleDir}/environment.yml"
+    // StaPH-B's image rather than biocontainers: the biocontainers
+    // ncbi-datasets-cli image stopped at v14.26 (2023), which no longer works
+    // against NCBI's current API. Fully qualified, since the pipeline's
+    // default container registry is quay.io.
     container "${ workflow.containerEngine in ['singularity', 'apptainer'] && !task.ext.singularity_pull_docker_container ?
-        'https://depot.galaxyproject.org/singularity/entrez-direct:16.2--he881be0_1' :
-        'quay.io/biocontainers/entrez-direct:16.2--he881be0_1' }"
+        'docker://staphb/ncbi-datasets:18.39.0' :
+        'docker.io/staphb/ncbi-datasets:18.39.0' }"
 
     input:
     val accession
 
     output:
-    path("${accession}.esummary.xml"), emit: esummary_xml
-    path("${accession}.esummary.json"), emit: esummary_json
-    path("${accession}.fasta.gz"), emit: fasta
-    path("${accession}_*_genomic.gff.gz"), emit: gff
+    path("${accession}.fasta.gz"),                              emit: fasta
+    path("${accession}.gff.gz"), optional: true,                emit: gff
+    path("${accession}.assembly_report.jsonl"),                 emit: assembly_report
+    path("${accession}.sequence_report.jsonl"),                 emit: sequence_report
     // No versions-topic emit here: storeDir only supports plain `val`/`path`
     // outputs, not `tuple` (which the versions-topic convention used
     // elsewhere in this pipeline requires) - confirmed by Nextflow refusing
     // to run this process otherwise ("storeDir can only be used with `val`
-    // and `path` outputs"). entrez-direct's version is pinned in
+    // and `path` outputs"). The datasets version is pinned in
     // environment.yml/the container tag instead.
 
     when:
     task.ext.when == null || task.ext.when
 
     script:
-    // Whole-assembly FASTA (all contigs/plasmids) via NCBI's E-utilities:
-    // resolve the assembly accession to its nucleotide sequences
-    // (assembly -> nuccore, INSDC set) and fetch them all in one go.
-    // NCBI's own `datasets` CLI covers this in one call, but no current,
-    // working container build exists for it (tested and confirmed against
-    // the live API); `ncbi-genome-download` has a live, maintainer-closed
-    // parsing bug against NCBI's current assembly_summary.txt (upstream
-    // added an unescaped-tab field). entrez-direct is the option that
-    // actually works, using the same stable E-utilities protocol NCBI has
-    // kept backwards-compatible for decades.
+    def args = task.ext.args ?: ''
+    // NCBI Datasets: one call returns the assembly FASTA, its GFF3 annotation
+    // and metadata, all from the same assembly record - so FASTA and GFF use
+    // the same sequence names (e.g. NC_000913.3 in both for GCF_000005845.2).
+    // Works for RefSeq (GCF_) and GenBank (GCA_) accessions. Unannotated
+    // assemblies (common for MAGs) come back without a GFF, so that output is
+    // optional; a missing FASTA is an error.
     """
-    esearch -db assembly -query "${accession}" | esummary > ${accession}.esummary.xml
+    datasets download genome accession ${accession} \\
+        --include genome,gff3,seq-report \\
+        --filename ${accession}.zip \\
+        --no-progressbar \\
+        ${args}
 
-    esearch -db assembly -query "${accession}" | esummary -mode json > ${accession}.esummary.json
+    unzip -q -o ${accession}.zip -d ${accession}_dataset
+    data_dir=${accession}_dataset/ncbi_dataset/data
 
-    esearch -db assembly -query "${accession}[Assembly Accession]" \\
-        | elink -target nuccore -name assembly_nuccore_insdc \\
-        | efetch -format fasta \\
-        | gzip > ${accession}.fasta.gz
-
-    if [ ! -s ${accession}.fasta.gz ] || [ \$(zcat ${accession}.fasta.gz | head -c1 | wc -c) -eq 0 ]; then
-        echo "No sequences retrieved for assembly accession ${accession}" >&2
+    fna=\$(find "\$data_dir/${accession}" -name '*_genomic.fna' | head -n 1)
+    if [ -z "\$fna" ] || [ ! -s "\$fna" ]; then
+        echo "No genome sequence retrieved for assembly accession ${accession}" >&2
         exit 1
     fi
+    gzip -c "\$fna" > ${accession}.fasta.gz
 
-    esearch -db assembly -query "${accession}" \\
-        | esummary \\
-        | xtract -pattern DocumentSummary -element FtpPath_RefSeq \\
-        | while read -r ftp_url; do
-              base=\$(basename "\$ftp_url")
-              curl -sSL "\${ftp_url}/\${base}_genomic.gff.gz" -o "\${base}_genomic.gff.gz"
-          done
-
-    if [ ! -s ${accession}*.gff.gz ] || [ \$(zcat ${accession}*.gff.gz | head -c1 | wc -c) -eq 0 ]; then
-        echo "No annotation retrieved for assembly accession ${accession}" >&2
-        exit 1
+    if [ -s "\$data_dir/${accession}/genomic.gff" ]; then
+        gzip -c "\$data_dir/${accession}/genomic.gff" > ${accession}.gff.gz
+    else
+        echo "No GFF annotation available for ${accession} - continuing with FASTA only" >&2
     fi
 
+    cp "\$data_dir/assembly_data_report.jsonl" ${accession}.assembly_report.jsonl
+    cp "\$data_dir/${accession}/sequence_report.jsonl" ${accession}.sequence_report.jsonl
+
+    rm -rf ${accession}.zip ${accession}_dataset
     """
 
     stub:
     """
     echo '' | gzip > ${accession}.fasta.gz
-    echo '' | gzip > ${accession}_x_.gff.gz
+    echo '' | gzip > ${accession}.gff.gz
+    touch ${accession}.assembly_report.jsonl ${accession}.sequence_report.jsonl
     """
 }

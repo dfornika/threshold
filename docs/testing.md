@@ -195,30 +195,44 @@ metrics and the assembler genome-size hint. Priority:
    consistent with the samplesheet (`match`, or `not_checked`) - never for a
    `mismatch`.
 
-Fetching uses NCBI's E-utilities (`esearch | elink | efetch`, assembly →
-nucleotide sequences), cached by accession using Nextflow's `storeDir` in
-`--reference_genome_cache_dir` - a genome is never re-downloaded across runs,
-and deduplicated within a run when several samples share an accession.
+Fetching uses the NCBI Datasets CLI (`datasets download genome accession
+... --include genome,gff3,seq-report`). Each accession's cache entry holds:
+- `<acc>.fasta.gz`: the whole assembly (all contigs/plasmids);
+- `<acc>.gff.gz`: the GFF3 annotation, when NCBI has one (unannotated
+  assemblies, common for MAGs, have none - not an error);
+- `<acc>.assembly_report.jsonl` and `<acc>.sequence_report.jsonl`: NCBI's
+  assembly metadata and per-sequence report.
 
-**Tool choice, checked rather than assumed**: `ncbi-genome-download` (what the
-nf-core `ncbigenomedownload` module wraps) currently fails against NCBI's live
-`assembly_summary.txt` - a real, maintainer-closed bug
-([kblin/ncbi-genome-download#237](https://github.com/kblin/ncbi-genome-download/issues/237),
-closed as "not a bug in ncbi-genome-download... I don't know how I'd work
-around it" - NCBI added a field that itself contains unescaped tabs, breaking
-the tab-delimited parser). NCBI's own `datasets` CLI would be the obvious
-alternative, but every container build we could find (bioconda/biocontainers,
-`staphb/ncbi-datasets`) is too old to work against the current API
-("No assemblies found that match selection" even for accessions that exist).
-`entrez-direct` is what actually works, using the same E-utilities protocol
-NCBI has kept backwards-compatible for decades - the same tool nf-core's own
-`entrezdirect` modules already use.
+`REFERENCE_GENOME` emits per-sample `sample_reference` (FASTA) and
+`sample_gff` channels. Entries are cached using Nextflow's `storeDir` in
+`--reference_genome_cache_dir` - never re-downloaded across runs, and
+deduplicated within a run when several samples share an accession. A cache
+entry missing any required file (e.g. one written by the earlier
+entrez-direct version, which only had the FASTA) is re-fetched automatically.
+
+**Tool choice, checked rather than assumed**: `datasets` fetches the FASTA,
+GFF and metadata from the same assembly record in one call, for RefSeq
+(`GCF_`) and GenBank (`GCA_`) accessions alike, so the FASTA and GFF use the
+same sequence names. The previous approach (E-utilities: `esearch | elink |
+efetch` via `assembly_nuccore_insdc`, plus the GFF from the RefSeq FTP path)
+didn't: for `GCF_000005845.2` the FASTA came back as the GenBank record
+`U00096.3` while the RefSeq GFF names it `NC_000913.3`, so tools pairing the
+two would silently find no features; and GenBank-only accessions have no
+RefSeq FTP path at all. `datasets` was passed over originally only because
+the biocontainers `ncbi-datasets-cli` image stopped at v14.26 (May 2023),
+which no longer works against NCBI's API. The module now uses StaPH-B's
+regularly updated image (`staphb/ncbi-datasets:18.39.0`; conda:
+`conda-forge::ncbi-datasets-cli=18.39.0`). `ncbi-genome-download` (the
+nf-core `ncbigenomedownload` module) remains unusable - it fails to parse
+NCBI's current `assembly_summary.txt`
+([kblin/ncbi-genome-download#237](https://github.com/kblin/ncbi-genome-download/issues/237)).
 
 **Fetching is on by default** (`--skip_reference_genome_fetch` defaults to
 `false`) - the planned deployment environments have network access. A
 per-accession fetch failure doesn't fail the run: `conf/modules.config` gives
 `FETCH_REFERENCE_GENOME` a retry-twice-then-ignore `errorStrategy`, and that
-sample simply has no reference (QUAST runs reference-free, and the genome-size
+sample simply has no reference (a failed fetch isn't cached, so a bad
+accession is retried on every run) (QUAST runs reference-free, and the genome-size
 hint falls back to the taxid table). The offline `test`/`test_full` profiles
 set `skip_reference_genome_fetch = true`; local FASTA paths in the samplesheet
 are used either way.
@@ -227,7 +241,13 @@ are used either way.
 `-params-file`, since Nextflow's CLI doesn't reliably coerce `--flag false` to
 boolean for schema-validated params): a *K. pneumoniae* isolate with a
 `match` fetches `GCF_058435815.1`, its length (5,489,631 bp) becomes the
-genome-size hint, and QUAST runs with `-r`.
+genome-size hint, and QUAST runs with `-r`. With `datasets`: an annotated
+RefSeq accession (`GCF_000005845.2`) caches FASTA + GFF + reports with
+matching sequence names; an unannotated GenBank MAG (`GCA_041569275.1`)
+caches FASTA + reports and no GFF, without error; a nonexistent accession is
+retried, then ignored, and that sample falls back to the taxid genome-size
+table; an old FASTA-only cache entry is re-fetched in full; and a second run
+skips every cached accession, including the one with no GFF.
 
 #### Dev-only sample datasets
 
