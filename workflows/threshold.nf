@@ -10,6 +10,7 @@ include { REFERENCE_GENOME              } from '../subworkflows/local/reference_
 include { ASSEMBLY_ANALYSIS             } from '../subworkflows/local/assembly'
 include { SPECCHECK                     } from '../subworkflows/local/speccheck'
 include { SAMPLE_SUMMARY                } from '../modules/local/sample_summary/main'
+include { GROUP_REPORTS                 } from '../subworkflows/local/group_reports'
 include { paramsSummaryMap       } from 'plugin/nf-schema'
 include { paramsSummaryMultiqc   } from '../subworkflows/nf-core/utils_nfcore_pipeline'
 include { softwareVersionsToYAML } from '../subworkflows/nf-core/utils_nfcore_pipeline'
@@ -98,7 +99,7 @@ workflow THRESHOLD {
     // which rows exist; every other input is optional ([] if that stage was
     // skipped or reached no samples).
     //
-    SAMPLE_SUMMARY(
+    def sample_summary_out = SAMPLE_SUMMARY(
         read_qc_and_dehosting_out.sample_manifest,
         read_qc_and_dehosting_out.dehost_summary,
         species_id_out.species_check_summary,
@@ -136,30 +137,46 @@ workflow THRESHOLD {
         )
 
     //
-    // MODULE: MultiQC
+    // MODULE: MultiQC - all samples. ch_multiqc_files holds per-sample inputs
+    // as tuple(meta, file) (the meta drives the per-group reports below);
+    // run-level inputs (software versions, workflow summary, methods
+    // description) go in every report.
     //
-    ch_multiqc_files = ch_multiqc_files.mix(ch_collated_versions)
     def ch_summary_params = paramsSummaryMap(workflow, parameters_schema: "nextflow_schema.json")
     def ch_workflow_summary = channel.value(paramsSummaryMultiqc(ch_summary_params))
-    ch_multiqc_files = ch_multiqc_files.mix(ch_workflow_summary.collectFile(name: 'workflow_summary_mqc.yaml'))
     def ch_multiqc_custom_methods_description = multiqc_methods_description
         ? file(multiqc_methods_description, checkIfExists: true)
         : file("${projectDir}/assets/methods_description_template.yml", checkIfExists: true)
     def ch_methods_description = channel.value(methodsDescriptionText(ch_multiqc_custom_methods_description))
-    ch_multiqc_files = ch_multiqc_files.mix(ch_methods_description.collectFile(name: 'methods_description_mqc.yaml', sort: true))
+    def ch_multiqc_extra_files = ch_collated_versions
+        .mix(ch_workflow_summary.collectFile(name: 'workflow_summary_mqc.yaml'))
+        .mix(ch_methods_description.collectFile(name: 'methods_description_mqc.yaml', sort: true))
+
+    def ch_multiqc_config = multiqc_config
+        ? file(multiqc_config, checkIfExists: true)
+        : file("${projectDir}/assets/multiqc_config.yml", checkIfExists: true)
+    def ch_multiqc_logo = multiqc_logo ? file(multiqc_logo, checkIfExists: true) : []
+
     def multiqc_out = MULTIQC(
-        ch_multiqc_files.flatten().collect().map { files ->
-            [
-                [id: 'threshold'],
-                files,
-                multiqc_config
-                    ? file(multiqc_config, checkIfExists: true)
-                    : file("${projectDir}/assets/multiqc_config.yml", checkIfExists: true),
-                multiqc_logo ? file(multiqc_logo, checkIfExists: true) : [],
-                [],
-                [],
-            ]
-        }
+        ch_multiqc_files.map { _meta, files -> files }
+            .mix(ch_multiqc_extra_files)
+            .flatten()
+            .collect()
+            .map { files -> [[id: 'threshold'], files, ch_multiqc_config, ch_multiqc_logo, [], []] }
+    )
+
+    //
+    // SUBWORKFLOW: per-group reports (--multiqc_group_by, e.g. each
+    // project_id and tag) - a MultiQC report and sample_summary.csv per group,
+    // in ${outdir}/groups/<field>/<value>/, alongside the all-samples ones.
+    //
+    GROUP_REPORTS(
+        ch_samplesheet,
+        ch_multiqc_files,
+        ch_multiqc_extra_files,
+        sample_summary_out.summary,
+        ch_multiqc_config,
+        ch_multiqc_logo
     )
     emit:multiqc_report = multiqc_out.report.map { _meta, report -> [report] }.toList() // channel: /path/to/multiqc_report.html
     versions       = ch_versions                 // channel: [ path(versions.yml) ]

@@ -1,0 +1,38 @@
+name: "filter_sample_summary"
+description: Keep the header and one group's rows (e.g. one project) of the all-samples sample_summary.csv
+keywords:
+  - summary
+  - project
+  - tags
+tools:
+  - "awk":
+      description: Filters CSV rows by sample ID
+      homepage: https://www.gnu.org/software/gawk/
+      licence: ["GPL-3.0-or-later"]
+
+input:
+  - - meta:
+        type: map
+        description: Group information - `id`, `field` (e.g. project_id) and `value`
+    - sample_ids:
+        type: list
+        description: IDs of the samples in the group
+    - summary:
+        type: file
+        description: The all-samples sample_summary.csv
+        pattern: "sample_summary.csv"
+
+output:
+  - summary:
+      - meta:
+          type: map
+          description: Group information
+      - "sample_summary.csv":
+          type: file
+          description: sample_summary.csv with only the group's samples
+          pattern: "sample_summary.csv"
+
+authors:
+  - "@dfornika"
+maintainers:
+  - "@dfornika"

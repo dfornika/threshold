@@ -51,6 +51,18 @@
                 "errorMessage": "reference should be an NCBI assembly accession (GCF_/GCA_...) or a path to a FASTA file, with no spaces",
                 "meta": ["reference"]
             },
+            "project_id": {
+                "type": "string",
+                "pattern": "^[A-Za-z0-9_.-]+$",
+                "errorMessage": "project_id may only contain letters, numbers, underscores, hyphens and dots (it's used as a directory name)",
+                "meta": ["project_id"]
+            },
+            "tags": {
+                "type": "string",
+                "pattern": "^([A-Za-z0-9_-]+:)*([A-Za-z0-9_-]+)$",
+                "errorMessage": "tags must be separated by colons and only contain letters, numbers, underscores and hyphens (e.g. rerun:validation)",
+                "meta": ["tags"]
+            },
             "genome_size": {
                 "type": "integer",
                 "minimum": 1,
