@@ -20,4 +20,4 @@ nextflow_schema.json
 README.md
 fastp/*.log
 fastplong/*.log
-pipeline_info/bccdc_provenance_spike.jsonl
+provenance/*.yml

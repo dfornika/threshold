@@ -11,6 +11,7 @@ nextflowPlugin {
     provider = 'BCCDC-PHL'
     className = 'bccdc.provenance.ProvenancePlugin'
     extensionPoints = [
+        'bccdc.provenance.ProvenanceConfig',
         'bccdc.provenance.ProvenanceObserverFactory'
     ]
 }

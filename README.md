@@ -51,6 +51,12 @@ status and known caveats.
    (reference-based metrics when the sample has a reference), plus
    [`CheckM2`](https://github.com/chklovski/CheckM2) for completeness /
    contamination when a `--checkm2_db` is provided.
+7. **Provenance** — the pipeline's `nf-bccdc-provenance` plugin writes
+   [BCCDC-PHL pipeline provenance](https://github.com/BCCDC-PHL/pipeline-provenance-schema)
+   records to `provenance/`: one `<sample>_provenance.yml` per sample (inputs
+   with `sha256`, each process with its tool versions, parameters and
+   container, and outputs) plus `run_provenance.yml`. See
+   [`plugins/nf-bccdc-provenance/README.md`](plugins/nf-bccdc-provenance/README.md).
 
 Planned but not yet implemented: genome annotation (Bakta/Prokka) of the draft
 assemblies, and hybrid (short + long) assembly (which needs an input model that

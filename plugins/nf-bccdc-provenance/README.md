@@ -1,8 +1,41 @@
-# nf-bccdc-provenance (spike)
+# nf-bccdc-provenance
 
-A Nextflow plugin to produce [BCCDC-PHL pipeline provenance](https://github.com/BCCDC-PHL/pipeline-provenance-schema) records automatically, so pipelines no longer need a `printf` block in every module. It lives in this repo while it's a spike, and will move to its own repo once it works reliably.
+A Nextflow plugin that writes [BCCDC-PHL pipeline provenance](https://github.com/BCCDC-PHL/pipeline-provenance-schema) records automatically, so pipelines no longer need a `printf` block in every module. It lives in this repo for now and will move to its own repo once it's settled.
 
-**Status: spike.** The plugin doesn't write provenance records yet. It records what Nextflow exposes about each task, to check that a plugin can get everything the schema needs. Its only output is `<outdir>/pipeline_info/bccdc_provenance_spike.jsonl`: one JSON object per line - a `run` record, one `task` record per task (executed, cached or failed) and one `publish` record per published file.
+**Status: early (0.2.0).** It writes schema-valid records for threshold, with the known gaps listed below.
+
+## What it writes
+
+At the end of a run, in `<outdir>/provenance/`:
+
+- `<sample>_provenance.yml`, one per sample
+- `run_provenance.yml` for tasks that don't belong to a sample (e.g. MultiQC, the sample summary)
+
+Each file is a YAML list in the schema's format, in this order:
+
+- **Pipeline record:** `pipeline_name`, `pipeline_version`, `nextflow_session_id`, `nextflow_run_name`, `timestamp_analysis_start`, `nextflow_version` (and `pipeline_commit` when run from a git checkout).
+- **Input files:** the sample's tasks' file inputs that live outside the work dir, i.e. pipeline inputs, references, databases, not intermediate files: `input_filename`, `file_type` (the module's input name, e.g. `reads`, `reference`, `database`), `file_path`, `sha256`.
+- **Processes:** one per process the sample went through, in completion order. `process_name`, plus `tools` (`tool_name`, `tool_version` from nf-core-style `versions` outputs, and `parameters` from the task's resolved `ext.args`, split into flag/value pairs), `status` (`completed`, `cached` or `failed`) and `container` (the image the module declares).
+- **Output files:** published files produced by the sample's tasks: `output_filename`, `file_path`, `sha256`.
+
+How it decides what belongs to a sample:
+
+- A sample is a `meta.id` seen in at least two different processes, so a run-wide ID like MultiQC's isn't mistaken for one.
+- Tasks without a sample (e.g. `FETCH_REFERENCE_GENOME`, one per accession) are attached to every sample whose tasks used their output files.
+- When a process failed and was retried, only the successful task is listed. A process that never succeeded for a sample appears once, as `failed`.
+
+All files pass the schema repo's `scripts/validate-pipeline-provenance.py`, checked on threshold's `test_full` profile with assembly and reference fetching on.
+
+## Settings
+
+```groovy
+bccdcProvenance {
+    enabled     = true          // set false to turn it off
+    directory   = 'provenance'  // relative to outdir unless absolute
+    hashMaxSize = '1 GB'        // larger files get no sha256
+    debug       = false         // also write provenance_debug.jsonl (raw observations)
+}
+```
 
 ## Build and install
 
@@ -15,42 +48,24 @@ cd plugins/nf-bccdc-provenance
 ./gradlew install
 ```
 
-That installs it into `~/.nextflow/plugins`, where Nextflow looks by default; set `NXF_PLUGINS_DIR` first to install somewhere else (Nextflow then looks there too). Rerun it after changing the plugin. `./gradlew assemble` just builds the zip (`build/distributions/nf-bccdc-provenance-0.1.0.zip`). In CI, a `build-plugin` job builds it once per run (with Gradle's downloads cached between runs) and every test job unpacks that zip into `~/.nextflow/plugins` (`.github/workflows/nf-test.yml`, `.github/actions/nf-test/action.yml`).
+That installs it into `~/.nextflow/plugins`, where Nextflow looks by default; set `NXF_PLUGINS_DIR` first to install somewhere else (Nextflow then looks there too). Rerun it after changing the plugin. `./gradlew assemble` just builds the zip (`build/distributions/nf-bccdc-provenance-0.2.0.zip`). In CI, a `build-plugin` job builds it once per run (with Gradle's downloads cached between runs) and every test job unpacks that zip into `~/.nextflow/plugins` (`.github/workflows/nf-test.yml`, `.github/actions/nf-test/action.yml`).
 
 The build needs Seqera's Maven repository, but only for Nextflow's own artifacts (`io.nextflow:*`, which aren't on Maven Central) and the `io.seqera` libraries they use. `build.gradle` restricts that repository to those groups: Seqera's repository is an S3 bucket that answers `403 Forbidden` (not 404) for anything it doesn't host, so letting Gradle fall through to it for ordinary libraries turned any Maven Central hiccup into a failed build.
 
-To try a different build of the plugin without editing `nextflow.config`, note that both `-plugins` on the command line and a `plugins {}` block in an extra `-c` config **replace** the pipeline's plugin list rather than adding to it - so repeat the pipeline's own plugins at their pinned versions, e.g. `-plugins nf-schema@2.5.1,nf-prov@1.7.0,nf-bccdc-provenance@0.1.0`. Leaving them out makes Nextflow pull the latest nf-schema, whose API differs, and the run fails.
+To try a different build of the plugin without editing `nextflow.config`, note that both `-plugins` on the command line and a `plugins {}` block in an extra `-c` config **replace** the pipeline's plugin list rather than adding to it - so repeat the pipeline's own plugins at their pinned versions, e.g. `-plugins nf-schema@2.5.1,nf-prov@1.7.0,nf-bccdc-provenance@0.2.0`. Leaving them out makes Nextflow pull the latest nf-schema, whose API differs, and the run fails.
 
-## Spike findings
+## Known gaps
 
-Built against the Nextflow 25.10.0 API (`TraceObserverV2`) and run on Nextflow 26.04.4 with threshold's `test_full` profile, then again with `-resume` and assembly on (30 cached + 10 executed tasks).
-
-### Available, and what the schema needs it for
-
-| Schema field                                            | Where it comes from                                                                 | Result                                                                                                                                                                                                    |
-| ------------------------------------------------------- | ----------------------------------------------------------------------------------- | --------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
-| Pipeline name/version, session ID, run name, start time | `session.workflowMetadata`                                                          | Available, along with commit ID, revision, profile, container engine, Nextflow version and command line                                                                                                   |
-| Which sample a task ran for                             | the `meta` map (with `id`) in the task's inputs                                     | Found for every per-sample task                                                                                                                                                                           |
-| Process name                                            | `task.processor.name`                                                               | Available                                                                                                                                                                                                 |
-| Tool name + version                                     | nf-core modules' `versions` outputs: `tuple val(process), val(tool), eval(version)` | Available: each version (`CmdEvalParam`) directly follows its tool name in the task's outputs, e.g. `minimap2` → `2.28-r1209`, `samtools` → `1.20`                                                        |
-| Tool parameters                                         | `ext.args` from `conf/modules.config`                                               | Available and already resolved, including per-sample closures: Shovill got `--gsize 4641652` (E. coli) and `--gsize 5489631` (_K. pneumoniae_)                                                            |
-| Container                                               | `task.container`                                                                    | Available for every task (a useful extra field)                                                                                                                                                           |
-| Input files per sample                                  | the task's file inputs located outside the work dir                                 | Available, with no pipeline-specific wiring: raw FASTQs, dehosting reference, sylph DB, species manifest, and the fetched reference FASTA + GFF (seen as inputs to that sample's QUAST/GENOME_SIZE tasks) |
-| Output files per sample                                 | publish events, mapped to the task whose work dir the file came from                | 87 of 96 published files traced to a sample (rest below)                                                                                                                                                  |
-| `-resume`                                               | `onTaskCached`                                                                      | Cached tasks are reported with full inputs, outputs and versions                                                                                                                                          |
-
-### To design for in the real plugin
-
-1. **Run-level tasks that have a `meta.id`.** MultiQC's `meta.id` is `threshold`, the run-wide ID, not a sample. The plugin needs a reliable way to tell samples apart: e.g. the IDs read from the samplesheet, or IDs that appear across several processes, or a configurable list of run-level processes.
-2. **Tasks keyed by something other than a sample**, such as `FETCH_REFERENCE_GENOME` (one task per accession, shared by samples). They're linked to samples because their outputs show up as inputs to per-sample tasks.
-3. **`storeDir` outputs are published from the cache, not a work dir** (8 of the 9 unattributed files), so they need attributing by output file name to the task that declares them.
-4. **Failed attempts are reported** (via `onTaskComplete`, with no outputs) - e.g. Shovill's retries on too-shallow data. Record them as failed rather than as normal steps.
-5. **Local modules without `versions` outputs** (e.g. `SPECIES_CHECK`, `GENOME_SIZE`, `SAMPLE_SUMMARY`) report no tool version. Adding a `versions`-topic output to each local module, as nf-core modules have, fixes that for every consumer.
-6. **Hashing** (`sha256` for input/output files) isn't attempted yet. Large FASTQs or databases shouldn't be hashed on the Nextflow head node every run: hash in parallel, or cache hashes by path + size + modification time.
+1. **No `file_size`.** The schema types `file_size` as an integer, but the schema repo's validator loads YAML with `yaml.BaseLoader`, which makes every value a string, so any record with `file_size` fails validation. (With a typed loader the reverse problem appears: `value: null` for flag-only parameters fails, because `value` is typed as a string.) It's left out until the schema and validator agree.
+2. **Hashing runs on the machine running Nextflow**, at the end of the run, for every input and published file up to `hashMaxSize`. That's fine for threshold's test data. For large runs it may need to move into tasks, or cache hashes by path, size and modification time.
+3. **Local modules without a `versions` output** (e.g. `SPECIES_CHECK`, `GENOME_SIZE`, `SAMPLE_SUMMARY`) report no tools. Their `ext.args`, if any, go in a process-level `parameters` field. Adding a `versions`-topic output to each local module fixes this.
+4. **Failed tasks have no tool version**, since versions are only captured from a successful task's outputs.
+5. **Sample detection is a heuristic** (an ID in two or more processes). A sample that only ever reaches one process would be missed. Reading the IDs from the samplesheet would be more robust.
+6. **Untyped processes only.** The plugin reads Nextflow's legacy input/output declarations; typed processes (static typing, still a preview) will need handling when nf-core modules adopt them.
 
 ## Next steps
 
-1. Write records in the BCCDC schema: one `<sample>_provenance.yml` per sample plus the pipeline record, handling the cases above.
-2. Validate the output with `scripts/validate-pipeline-provenance.py` from the schema repo, in the plugin's tests and in threshold's CI.
-3. Configuration (`bccdcProvenance { ... }` scope: enable/disable, output path, hashing).
-4. Move to its own repo, publish (Nextflow plugin registry, or a self-hosted index for offline clusters), and add it to `nextflow.config`.
+1. Settle `file_size` with the schema (see above), and consider tagging a schema release for the plugin to target.
+2. Validate the provenance files in threshold's CI, not just locally.
+3. Unit tests for `ProvenanceBuilder` (attribution, retries, `ext.args` parsing).
+4. Move to its own repo, publish it (Nextflow plugin registry, or a self-hosted index for offline clusters), and try it in another BCCDC-PHL pipeline.
