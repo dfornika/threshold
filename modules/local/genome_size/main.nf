@@ -8,7 +8,7 @@ process GENOME_SIZE {
         'quay.io/biocontainers/python:3.12' }"
 
     input:
-    tuple val(meta), path(reference), path(consensus)   // reference/consensus optional (staged empty when absent)
+    tuple val(meta), path(reference), val(taxid)   // reference optional (staged empty when absent); taxid may be 'NA'
     path  table
     val   default_genome_size
 
@@ -21,12 +21,14 @@ process GENOME_SIZE {
     script:
     def prefix = task.ext.prefix ?: "${meta.id}"
     def reference_arg = reference ? "--reference ${reference}" : ''
-    def consensus_arg = consensus ? "--consensus ${consensus}" : ''
+    def override_arg  = meta.genome_size ? "--override ${meta.genome_size}" : ''
+    def taxid_arg     = taxid && taxid != 'NA' ? "--taxid ${taxid}" : ''
     def table_arg     = table     ? "--table ${table}"         : ''
     """
     resolve_genome_size.py \\
+        ${override_arg} \\
         ${reference_arg} \\
-        ${consensus_arg} \\
+        ${taxid_arg} \\
         ${table_arg} \\
         --default ${default_genome_size} > ${prefix}.genome_size.txt
     """

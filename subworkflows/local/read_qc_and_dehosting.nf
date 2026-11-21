@@ -1,6 +1,6 @@
 //
 // Read QC + dehosting: everything that runs on every sample before any
-// species-ID/library-type analysis touches the reads.
+// species-ID or assembly touches the reads.
 //
 // FASTQC/FASTP/FASTPLONG each run twice - once on the raw input reads, and
 // again on the final (trimmed + dehosted) reads that flow to every
@@ -39,27 +39,20 @@ workflow READ_QC_AND_DEHOSTING {
 
     def ch_multiqc_files = channel.empty()
 
-    //
-    // Tag each sample's meta with its platform. `single_end` samples (no
-    // fastq_2) are assumed to be Nanopore; paired-end samples are assumed to
-    // be Illumina. This is the only place that assumption is encoded -
-    // everything downstream reads `meta.platform` instead.
-    //
-    def ch_reads = ch_samplesheet.map { meta, reads ->
-        tuple(meta + [platform: meta.single_end ? 'nanopore' : 'illumina'], reads)
-    }
+    // meta.platform / meta.sample_type come straight from the samplesheet.
+    def ch_reads = ch_samplesheet
 
     //
     // Anchor row list for SAMPLE_SUMMARY - every sample gets a row regardless
     // of which optional stages ran later.
     //
     def ch_sample_manifest = ch_reads
-        .map { meta, _reads -> "${meta.id}\t${meta.platform}" }
+        .map { meta, _reads -> "${meta.id}\t${meta.platform}\t${meta.sample_type}\t${meta.expected_species ?: 'NA'}" }
         .collectFile(
             name: 'sample_manifest.tsv',
             storeDir: "${outdir}/pipeline_info",
             sort: true,
-            seed: "sample\tplatform\n",
+            seed: "sample\tplatform\tsample_type\texpected_species\n",
             newLine: true
         )
 
@@ -93,7 +86,6 @@ workflow READ_QC_AND_DEHOSTING {
     // Recombine platform-specific trimmed reads into single channels.
     //
     def ch_trimmed   = FASTP_TRIM.out.reads.mix(FASTPLONG_TRIM.out.reads)
-    def ch_trim_json = FASTP_TRIM.out.json.mix(FASTPLONG_TRIM.out.json)
 
     //
     // MODULE: Dehost - remove host (human) reads by aligning to a host reference
@@ -144,8 +136,7 @@ workflow READ_QC_AND_DEHOSTING {
 
     emit:
     reads          = ch_clean_reads     // tuple(meta, reads) - trimmed + dehosted, ready for downstream analysis
-    trim_json      = ch_trim_json       // tuple(meta, json)  - pre-dehost fastp/fastplong QC json
     multiqc_files  = ch_multiqc_files
-    sample_manifest = ch_sample_manifest // path - sample, platform - anchor row list for SAMPLE_SUMMARY
+    sample_manifest = ch_sample_manifest // path - sample, platform, sample_type, expected_species - anchor row list for SAMPLE_SUMMARY
     dehost_summary  = ch_dehost_summary  // path (or []) - for SAMPLE_SUMMARY
 }

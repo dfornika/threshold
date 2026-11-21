@@ -26,8 +26,37 @@
                 "exists": true,
                 "pattern": "^([\\S\\s]*\\/)?[^\\s\\/]+\\.f(ast)?q\\.gz$",
                 "errorMessage": "FastQ file for reads 2 cannot contain spaces and must have extension '.fq.gz' or '.fastq.gz'"
+            },
+            "platform": {
+                "type": "string",
+                "enum": ["illumina", "nanopore"],
+                "errorMessage": "platform must be one of: illumina, nanopore",
+                "meta": ["platform"]
+            },
+            "sample_type": {
+                "type": "string",
+                "enum": ["isolate", "metagenomic", "amplicon_16s", "amplicon_other"],
+                "errorMessage": "sample_type must be one of: isolate, metagenomic, amplicon_16s, amplicon_other",
+                "meta": ["sample_type"]
+            },
+            "expected_species": {
+                "type": ["string", "integer"],
+                "errorMessage": "expected_species should be a species name (e.g. 'Escherichia coli') or an NCBI species taxid",
+                "meta": ["expected_species"]
+            },
+            "reference": {
+                "type": "string",
+                "pattern": "^\\S+$",
+                "errorMessage": "reference should be an NCBI assembly accession (GCF_/GCA_...) or a path to a FASTA file, with no spaces",
+                "meta": ["reference"]
+            },
+            "genome_size": {
+                "type": "integer",
+                "minimum": 1,
+                "errorMessage": "genome_size should be a positive integer (bp)",
+                "meta": ["genome_size"]
             }
         },
-        "required": ["sample", "fastq_1"]
+        "required": ["sample", "fastq_1", "platform", "sample_type"]
     }
 }

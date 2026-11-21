@@ -1,0 +1,41 @@
+name: "species_check"
+description: Compare a sample's sylph species-ID profile against the samplesheet's expected_species, and report the observed top hit
+keywords:
+  - species identification
+  - sylph
+  - sample swap
+  - contamination
+tools:
+  - "python":
+      description: Parses the sylph profile TSV and matches it against the expected species
+      homepage: https://www.python.org/
+      licence: ["PSF"]
+
+input:
+  - - meta:
+        type: map
+        description: |
+          Groovy Map containing sample information. Must include `id`, `platform` and `sample_type`; `expected_species` is optional.
+    - profile:
+        type: file
+        description: sylph profile TSV for this sample
+        pattern: "*.tsv"
+  - - manifest:
+        type: file
+        description: species_db manifest.csv used to resolve accessions to species names/taxids
+        pattern: "*.csv"
+
+output:
+  - result:
+      - meta:
+          type: map
+          description: Groovy Map containing sample information
+      - "*.species_check.tsv":
+          type: file
+          description: One line - sample, platform, verdict, expected_species, accession, species_taxid, species_name, adjusted_ani, taxonomic_abundance, n_hits
+          pattern: "*.species_check.tsv"
+
+authors:
+  - "@dfornika"
+maintainers:
+  - "@dfornika"

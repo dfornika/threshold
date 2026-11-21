@@ -12,12 +12,13 @@ files, and produces a per-sample summary of what each library is and what's in
 it. Results from every stage are collated by [`MultiQC`](http://multiqc.info/)
 and into a single `sample_summary.csv`.
 
-The pipeline is an active work in progress. Some stages deliberately run
-**several independent methods for the same question in parallel** and fuse them
-into a consensus verdict, so the individual methods can keep being compared
-against real data before any are simplified away. See
-[`docs/testing.md`](docs/testing.md) for the detailed, method-by-method
-rationale, validation status, and known caveats.
+The pipeline doesn't try to work out _what_ each library is from the reads:
+the samplesheet says so (platform, sample type, expected species - see
+[Usage](#usage)), and the pipeline routes each sample accordingly and checks
+the reads against those claims. In deployment, the automation system that
+launches the pipeline fills these in from the sequencing project's metadata.
+See [`docs/testing.md`](docs/testing.md) for method rationale, validation
+status and known caveats.
 
 ### Analyses
 
@@ -27,35 +28,26 @@ rationale, validation status, and known caveats.
    raw reads and again on the final trimmed/dehosted reads that flow downstream.
 2. **Host read removal (dehosting)** — [`minimap2`](https://github.com/lh3/minimap2)
    against a host reference (`--dehost_reference`); toggle with `--skip_dehosting`.
-3. **Library type: amplicon vs. shotgun** — four independent detectors
-   (fastp QC-JSON insert-size/duplication, reference-free read clustering,
-   reference-aligned depth dispersion, and aligned read-position pileup) fused
-   into one majority-vote **consensus** verdict (`meta.library_type`).
-4. **Species identification** — [`mash`](https://github.com/marbl/Mash),
-   [`sourmash`](https://github.com/sourmash-bio/sourmash), and
-   [`sylph`](https://github.com/bluenote-1577/sylph) run in parallel against a
-   reference-genome database, reconciled into a single consensus call via a
-   majority vote on species taxid (each tool toggleable via
-   `--skip_mash`/`--skip_sourmash`/`--skip_sylph`).
-5. **Pure culture vs. metagenomic** — composition-breadth analysis of the
-   sourmash results (how many reference genomes it takes to explain the sample),
-   with ANI-based collapsing of nomenclature artifacts; low database coverage
-   is reported as `inconclusive` rather than a false confident call.
-6. **Reference genome fetch & cache** — fetches the consensus species' assembly
-   from NCBI (via [`entrez-direct`](https://www.ncbi.nlm.nih.gov/books/NBK179288/)),
-   cached by accession across runs. On by default; a fetch failure degrades
-   gracefully rather than failing the run. Toggle with
-   `--skip_reference_genome_fetch` / `--reference_genome_cache_dir`.
-7. **16S rRNA amplicon detection** — for samples whose composition breadth came
-   back inconclusive, an alignment-based check against a dedicated 16S database
-   to distinguish 16S/marker-gene libraries from other cases. Off by default
-   (needs `--sixteen_s_db`).
-8. **Draft genome assembly** — for pure-culture shotgun libraries only, routed
-   by platform: [`Shovill`](https://github.com/tseemann/shovill) (Illumina) /
+3. **Species ID + check** — [`sylph`](https://github.com/bluenote-1577/sylph)
+   against a reference-genome database (`--sylph_db`); the top hit is compared
+   with the samplesheet's `expected_species` and reported as `match` /
+   `mismatch` / `no_hit` / `not_checked`, to catch sample swaps, contamination
+   and mislabelling. Skipped for `amplicon_16s` samples; toggle with
+   `--skip_species_id`.
+4. **Reference genome** — for isolates: the samplesheet's `reference` (a local
+   FASTA, or an NCBI assembly accession fetched via
+   [`entrez-direct`](https://www.ncbi.nlm.nih.gov/books/NBK179288/)), else the
+   species-ID top hit when it agrees with `expected_species`. Fetched genomes
+   are cached by accession across runs (`--reference_genome_cache_dir`); a
+   fetch failure degrades gracefully. Toggle fetching with
+   `--skip_reference_genome_fetch`.
+5. **Draft genome assembly** — for `isolate` samples only, routed by platform:
+   [`Shovill`](https://github.com/tseemann/shovill) (Illumina, paired-end) /
    [`Dragonflye`](https://github.com/rpetit3/dragonflye) (Nanopore). On by
    default; toggle with `--skip_assembly`.
-9. **Assembly QC** — [`QUAST`](https://github.com/ablab/quast) for contiguity,
-   plus [`CheckM2`](https://github.com/chklovski/CheckM2) for completeness /
+6. **Assembly QC** — [`QUAST`](https://github.com/ablab/quast) for contiguity
+   (reference-based metrics when the sample has a reference), plus
+   [`CheckM2`](https://github.com/chklovski/CheckM2) for completeness /
    contamination when a `--checkm2_db` is provided.
 
 Planned but not yet implemented: genome annotation (Bakta/Prokka) of the draft
@@ -69,11 +61,16 @@ First, prepare a samplesheet with your input data that looks as follows:
 `samplesheet.csv`:
 
 ```csv
-sample,fastq_1,fastq_2
-CONTROL_REP1,AEG588A1_S1_L002_R1_001.fastq.gz,AEG588A1_S1_L002_R2_001.fastq.gz
+sample,fastq_1,fastq_2,platform,sample_type,expected_species,reference,genome_size
+ISOLATE_1,ISO1_S1_L001_R1_001.fastq.gz,ISO1_S1_L001_R2_001.fastq.gz,illumina,isolate,Escherichia coli,,
+ISOLATE_2,ISO2.fastq.gz,,nanopore,isolate,1280,GCF_002310435.1,
+GUT_1,GUT1_R1.fastq.gz,GUT1_R2.fastq.gz,illumina,metagenomic,,,
 ```
 
-Each row represents a fastq file (single-end) or a pair of fastq files (paired end).
+Each row is one FASTQ file (single-end) or a pair of FASTQ files (paired-end).
+`platform` (`illumina` / `nanopore`) and `sample_type` (`isolate` /
+`metagenomic` / `amplicon_16s` / `amplicon_other`) are required; the rest are
+optional. See [`docs/usage.md`](docs/usage.md) for details.
 
 Now, you can run the pipeline using:
 
@@ -81,6 +78,8 @@ Now, you can run the pipeline using:
 nextflow run BCCDC-PHL/gx-threshold \
    -profile <conda/docker/singularity/apptainer> \
    --input samplesheet.csv \
+   --sylph_db <db.syldb> \
+   --dehost_reference <host.fasta> \
    --outdir <OUTDIR>
 ```
 

@@ -112,6 +112,9 @@ workflow PIPELINE_INITIALISATION {
         .fromList(samplesheetToList(input, "${projectDir}/assets/schema_input.json"))
         .map {
             meta, fastq_1, fastq_2 ->
+                if (meta.platform == 'nanopore' && fastq_2) {
+                    error("Please check input samplesheet -> Nanopore samples must be single-end (no fastq_2): ${meta.id}")
+                }
                 if (!fastq_2) {
                     return [ meta.id, meta + [ single_end:true ], [ fastq_1 ] ]
                 } else {
@@ -194,6 +197,14 @@ def validateInputSamplesheet(input) {
     def endedness_ok = metas.collect{ meta -> meta.single_end }.unique().size == 1
     if (!endedness_ok) {
         error("Please check input samplesheet -> Multiple runs of a sample must be of the same datatype i.e. single-end or paired-end: ${metas[0].id}")
+    }
+
+    // Every samplesheet-provided field must agree across a sample's runs -
+    // they describe the sample, not the run.
+    ['platform', 'sample_type', 'expected_species', 'reference', 'genome_size'].each { key ->
+        if (metas.collect { meta -> meta[key] }.unique().size() != 1) {
+            error("Please check input samplesheet -> Multiple runs of a sample must have the same ${key}: ${metas[0].id}")
+        }
     }
 
     return [ metas[0], fastqs ]

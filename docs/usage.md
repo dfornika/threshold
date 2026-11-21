@@ -8,45 +8,53 @@
 
 ## Samplesheet input
 
-You will need to create a samplesheet with information about the samples you would like to analyse before running the pipeline. Use this parameter to specify its location. It has to be a comma-separated file with 3 columns, and a header row as shown in the examples below.
+You will need to create a samplesheet with information about the samples you would like to analyse before running the pipeline. Use this parameter to specify its location. It has to be a comma-separated file with a header row, as shown in the examples below.
 
 ```bash
 --input '[path to samplesheet file]'
 ```
+
+The pipeline does not try to infer what kind of library each sample is - it takes that from the samplesheet. In deployment, these columns are expected to be filled in by the automation system that launches the pipeline (e.g. from the sequencing project's metadata).
+
+### Columns
+
+| Column             | Required | Description                                                                                                                                                                                                                        |
+| ------------------ | -------- | ---------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| `sample`           | yes      | Sample name, no spaces. Identical for multiple sequencing runs of the same sample.                                                                                                                                                 |
+| `fastq_1`          | yes      | Path to the gzipped FastQ file (`.fastq.gz` / `.fq.gz`) - read 1 for paired-end Illumina, or the only file for single-end / Nanopore.                                                                                              |
+| `fastq_2`          | no       | Path to the read 2 FastQ file, for paired-end Illumina. Must be empty for Nanopore.                                                                                                                                                |
+| `platform`         | yes      | `illumina` or `nanopore`.                                                                                                                                                                                                          |
+| `sample_type`      | yes      | `isolate` (pure culture, shotgun - gets assembled), `metagenomic` (shotgun metagenomic), `amplicon_16s` (16S rRNA amplicon - species ID is skipped), or `amplicon_other` (any other targeted amplicon, e.g. a viral tiling panel). |
+| `expected_species` | no       | Species name (e.g. `Escherichia coli`) or NCBI taxid (e.g. `562`) the sample should contain. The species-ID result is checked against it (`match` / `mismatch`); without it, the top hit is just reported (`not_checked`).         |
+| `reference`        | no       | Reference genome for an isolate: an NCBI assembly accession (`GCF_...` / `GCA_...`, fetched and cached) or a path to a local FASTA. Without it, the species-ID top hit's genome is used when it agrees with `expected_species`.    |
+| `genome_size`      | no       | Expected genome size in bp, passed to the assembler. Without it, the reference genome's length (or a per-species lookup, or `--default_genome_size`) is used.                                                                      |
+
+Every column describes the sample, not the run, so all rows for the same `sample` must agree on `platform`, `sample_type`, `expected_species`, `reference` and `genome_size`.
 
 ### Multiple runs of the same sample
 
 The `sample` identifiers have to be the same when you have re-sequenced the same sample more than once e.g. to increase sequencing depth. The pipeline will concatenate the raw reads before performing any downstream analysis. Below is an example for the same sample sequenced across 3 lanes:
 
 ```csv title="samplesheet.csv"
-sample,fastq_1,fastq_2
-CONTROL_REP1,AEG588A1_S1_L002_R1_001.fastq.gz,AEG588A1_S1_L002_R2_001.fastq.gz
-CONTROL_REP1,AEG588A1_S1_L003_R1_001.fastq.gz,AEG588A1_S1_L003_R2_001.fastq.gz
-CONTROL_REP1,AEG588A1_S1_L004_R1_001.fastq.gz,AEG588A1_S1_L004_R2_001.fastq.gz
+sample,fastq_1,fastq_2,platform,sample_type,expected_species
+ISOLATE_1,ISO1_S1_L002_R1_001.fastq.gz,ISO1_S1_L002_R2_001.fastq.gz,illumina,isolate,Escherichia coli
+ISOLATE_1,ISO1_S1_L003_R1_001.fastq.gz,ISO1_S1_L003_R2_001.fastq.gz,illumina,isolate,Escherichia coli
+ISOLATE_1,ISO1_S1_L004_R1_001.fastq.gz,ISO1_S1_L004_R2_001.fastq.gz,illumina,isolate,Escherichia coli
 ```
 
 ### Full samplesheet
 
-The pipeline will auto-detect whether a sample is single- or paired-end using the information provided in the samplesheet. The samplesheet can have as many columns as you desire, however, there is a strict requirement for the first 3 columns to match those defined in the table below.
-
-A final samplesheet file consisting of both single- and paired-end data may look something like the one below. This is for 6 samples, where `TREATMENT_REP3` has been sequenced twice.
+A samplesheet mixing platforms and sample types may look something like the one below.
 
 ```csv title="samplesheet.csv"
-sample,fastq_1,fastq_2
-CONTROL_REP1,AEG588A1_S1_L002_R1_001.fastq.gz,AEG588A1_S1_L002_R2_001.fastq.gz
-CONTROL_REP2,AEG588A2_S2_L002_R1_001.fastq.gz,AEG588A2_S2_L002_R2_001.fastq.gz
-CONTROL_REP3,AEG588A3_S3_L002_R1_001.fastq.gz,AEG588A3_S3_L002_R2_001.fastq.gz
-TREATMENT_REP1,AEG588A4_S4_L003_R1_001.fastq.gz,
-TREATMENT_REP2,AEG588A5_S5_L003_R1_001.fastq.gz,
-TREATMENT_REP3,AEG588A6_S6_L003_R1_001.fastq.gz,
-TREATMENT_REP3,AEG588A6_S6_L004_R1_001.fastq.gz,
+sample,fastq_1,fastq_2,platform,sample_type,expected_species,reference,genome_size
+ISOLATE_1,ISO1_R1.fastq.gz,ISO1_R2.fastq.gz,illumina,isolate,Escherichia coli,,
+ISOLATE_2,ISO2.fastq.gz,,nanopore,isolate,1280,GCF_002310435.1,
+ISOLATE_3,ISO3_R1.fastq.gz,ISO3_R2.fastq.gz,illumina,isolate,Klebsiella pneumoniae,/refs/kpn_local.fasta,5500000
+GUT_1,GUT1_R1.fastq.gz,GUT1_R2.fastq.gz,illumina,metagenomic,,,
+STOOL_16S,STOOL_16S.fastq.gz,,nanopore,amplicon_16s,,,
+SARS2_1,SARS2_1_R1.fastq.gz,SARS2_1_R2.fastq.gz,illumina,amplicon_other,Severe acute respiratory syndrome coronavirus 2,,
 ```
-
-| Column    | Description                                                                                                                                                                            |
-| --------- | -------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
-| `sample`  | Custom sample name. This entry will be identical for multiple sequencing libraries/runs from the same sample. Spaces in sample names are automatically converted to underscores (`_`). |
-| `fastq_1` | Full path to FastQ file for Illumina short reads 1. File has to be gzipped and have the extension ".fastq.gz" or ".fq.gz".                                                             |
-| `fastq_2` | Full path to FastQ file for Illumina short reads 2. File has to be gzipped and have the extension ".fastq.gz" or ".fq.gz".                                                             |
 
 An [example samplesheet](../assets/samplesheet.csv) has been provided with the pipeline.
 

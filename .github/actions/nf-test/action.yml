@@ -37,7 +37,11 @@ runs:
 
     - name: Setup apptainer
       if: contains(inputs.profile, 'singularity')
-      uses: eWaterCycle/setup-apptainer@3f706d898c9db585b1d741b4692e66755f3a1b40 # v2
+      # v3 installs via Apptainer's install script rather than the .deb, which
+      # needs libfuse3-3 (not available on Ubuntu 26.04 / ubuntu-latest).
+      uses: eWaterCycle/setup-apptainer@95b5c781df5f72fd2271cc3cff06904a09d2a087 # v3.0.0
+      with:
+        apptainer-version: 1.5.5
 
     - name: Set up Singularity
       if: contains(inputs.profile, 'singularity')
