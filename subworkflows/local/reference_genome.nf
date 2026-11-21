@@ -9,7 +9,7 @@
 //      or an NCBI assembly accession (GCF_/GCA_...), fetched;
 //   2. otherwise, the accession of sylph's top hit, when SPECIES_CHECK found
 //      it consistent with the samplesheet (verdict `match`, or `not_checked`
-//      when no expected_species was given) - never for a `mismatch`.
+//      when no expected_taxid was given) - never for a `mismatch`.
 //
 // Fetched genomes are cached by accession in --reference_genome_cache_dir
 // (Nextflow storeDir), so each is downloaded once across runs. A fetch failure

@@ -169,7 +169,7 @@ workflow ASSEMBLY_ANALYSIS {
             .collectFile(
                 name: 'assembly_summary.tsv',
                 storeDir: "${outdir}/assembly",
-                sort: true,
+                sort: { file -> file.name },   // by file name (= sample), not full work-dir path, so row order is stable across runs
                 seed: "sample\tplatform\tassembler\tn_contigs\ttotal_length\tlargest_contig\tn50\tgenome_fraction\tcompleteness\tcontamination\n"
             )
             .ifEmpty([])

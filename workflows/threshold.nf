@@ -35,7 +35,7 @@ workflow THRESHOLD {
     def ch_multiqc_files = channel.empty()
 
     //
-    // What each sample is (platform, sample_type, expected_species, and
+    // What each sample is (platform, sample_type, expected_taxid, and
     // optionally reference / genome_size) comes from the samplesheet - see
     // assets/schema_input.json. Nothing downstream tries to infer it.
     //
@@ -51,7 +51,7 @@ workflow THRESHOLD {
 
     //
     // SUBWORKFLOW: Species ID (sylph) + check against the samplesheet's
-    // expected_species - catches sample swaps / contamination / mislabelling.
+    // expected_taxid - catches sample swaps / contamination / mislabelling.
     //
     def ch_species_id_manifest = params.species_id_manifest ? file(params.species_id_manifest, checkIfExists: true) : []
     SPECIES_ID(ch_clean_reads, ch_species_id_manifest, outdir)

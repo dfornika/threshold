@@ -9,7 +9,7 @@ process SPECIES_CHECK {
 
     input:
     tuple val(meta), path(profile)
-    path  manifest, stageAs: 'manifest.csv?'   // optional: accession,organism,...,taxid,species_taxid,species_name
+    path  manifest, stageAs: 'manifest.csv?'   // accession,...,taxid,species_taxid,species_name - required when meta.expected_taxid is set
 
     output:
     tuple val(meta), path("*.species_check.tsv"), emit: result
@@ -20,13 +20,13 @@ process SPECIES_CHECK {
     script:
     def prefix = task.ext.prefix ?: "${meta.id}"
     def manifest_arg = manifest ? "--manifest ${manifest}" : ''
-    def expected = (meta.expected_species ?: '').toString().replace("'", "'\\''")
+    def expected_arg = meta.expected_taxid ? "--expected-taxid ${meta.expected_taxid}" : ''
     """
     check_species.py \\
         --sample ${meta.id} \\
         --platform ${meta.platform} \\
         --sample-type ${meta.sample_type} \\
-        --expected-species '${expected}' \\
+        ${expected_arg} \\
         ${manifest_arg} \\
         ${profile} > ${prefix}.species_check.tsv
     """

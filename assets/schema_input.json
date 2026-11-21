@@ -39,10 +39,11 @@
                 "errorMessage": "sample_type must be one of: isolate, metagenomic, amplicon_16s, amplicon_other",
                 "meta": ["sample_type"]
             },
-            "expected_species": {
-                "type": ["string", "integer"],
-                "errorMessage": "expected_species should be a species name (e.g. 'Escherichia coli') or an NCBI species taxid",
-                "meta": ["expected_species"]
+            "expected_taxid": {
+                "type": "integer",
+                "minimum": 1,
+                "errorMessage": "expected_taxid must be an NCBI taxid (a positive integer, e.g. 562 for Escherichia coli) - species names are not accepted",
+                "meta": ["expected_taxid"]
             },
             "reference": {
                 "type": "string",

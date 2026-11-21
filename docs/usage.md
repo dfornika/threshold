@@ -18,28 +18,28 @@ The pipeline does not try to infer what kind of library each sample is - it take
 
 ### Columns
 
-| Column             | Required | Description                                                                                                                                                                                                                        |
-| ------------------ | -------- | ---------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
-| `sample`           | yes      | Sample name, no spaces. Identical for multiple sequencing runs of the same sample.                                                                                                                                                 |
-| `fastq_1`          | yes      | Path to the gzipped FastQ file (`.fastq.gz` / `.fq.gz`) - read 1 for paired-end Illumina, or the only file for single-end / Nanopore.                                                                                              |
-| `fastq_2`          | no       | Path to the read 2 FastQ file, for paired-end Illumina. Must be empty for Nanopore.                                                                                                                                                |
-| `platform`         | yes      | `illumina` or `nanopore`.                                                                                                                                                                                                          |
-| `sample_type`      | yes      | `isolate` (pure culture, shotgun - gets assembled), `metagenomic` (shotgun metagenomic), `amplicon_16s` (16S rRNA amplicon - species ID is skipped), or `amplicon_other` (any other targeted amplicon, e.g. a viral tiling panel). |
-| `expected_species` | no       | Species name (e.g. `Escherichia coli`) or NCBI taxid (e.g. `562`) the sample should contain. The species-ID result is checked against it (`match` / `mismatch`); without it, the top hit is just reported (`not_checked`).         |
-| `reference`        | no       | Reference genome for an isolate: an NCBI assembly accession (`GCF_...` / `GCA_...`, fetched and cached) or a path to a local FASTA. Without it, the species-ID top hit's genome is used when it agrees with `expected_species`.    |
-| `genome_size`      | no       | Expected genome size in bp, passed to the assembler. Without it, the reference genome's length (or a per-species lookup, or `--default_genome_size`) is used.                                                                      |
+| Column           | Required | Description                                                                                                                                                                                                                                                                                                                  |
+| ---------------- | -------- | ---------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| `sample`         | yes      | Sample name, no spaces. Identical for multiple sequencing runs of the same sample.                                                                                                                                                                                                                                           |
+| `fastq_1`        | yes      | Path to the gzipped FastQ file (`.fastq.gz` / `.fq.gz`) - read 1 for paired-end Illumina, or the only file for single-end / Nanopore.                                                                                                                                                                                        |
+| `fastq_2`        | no       | Path to the read 2 FastQ file, for paired-end Illumina. Must be empty for Nanopore.                                                                                                                                                                                                                                          |
+| `platform`       | yes      | `illumina` or `nanopore`.                                                                                                                                                                                                                                                                                                    |
+| `sample_type`    | yes      | `isolate` (pure culture, shotgun - gets assembled), `metagenomic` (shotgun metagenomic), `amplicon_16s` (16S rRNA amplicon - species ID is skipped), or `amplicon_other` (any other targeted amplicon, e.g. a viral tiling panel).                                                                                           |
+| `expected_taxid` | no       | NCBI taxid (e.g. `562` for _Escherichia coli_) the sample should contain - species level, or a strain/virus-level taxid. Names are not accepted. The species-ID result is checked against it (`match` / `mismatch` / `unresolved`); without it, the top hit is just reported (`not_checked`). Needs `--species_id_manifest`. |
+| `reference`      | no       | Reference genome for an isolate: an NCBI assembly accession (`GCF_...` / `GCA_...`, fetched and cached) or a path to a local FASTA. Without it, the species-ID top hit's genome is used when it agrees with `expected_taxid`.                                                                                                |
+| `genome_size`    | no       | Expected genome size in bp, passed to the assembler. Without it, the reference genome's length (or a per-species lookup, or `--default_genome_size`) is used.                                                                                                                                                                |
 
-Every column describes the sample, not the run, so all rows for the same `sample` must agree on `platform`, `sample_type`, `expected_species`, `reference` and `genome_size`.
+Every column describes the sample, not the run, so all rows for the same `sample` must agree on `platform`, `sample_type`, `expected_taxid`, `reference` and `genome_size`.
 
 ### Multiple runs of the same sample
 
 The `sample` identifiers have to be the same when you have re-sequenced the same sample more than once e.g. to increase sequencing depth. The pipeline will concatenate the raw reads before performing any downstream analysis. Below is an example for the same sample sequenced across 3 lanes:
 
 ```csv title="samplesheet.csv"
-sample,fastq_1,fastq_2,platform,sample_type,expected_species
-ISOLATE_1,ISO1_S1_L002_R1_001.fastq.gz,ISO1_S1_L002_R2_001.fastq.gz,illumina,isolate,Escherichia coli
-ISOLATE_1,ISO1_S1_L003_R1_001.fastq.gz,ISO1_S1_L003_R2_001.fastq.gz,illumina,isolate,Escherichia coli
-ISOLATE_1,ISO1_S1_L004_R1_001.fastq.gz,ISO1_S1_L004_R2_001.fastq.gz,illumina,isolate,Escherichia coli
+sample,fastq_1,fastq_2,platform,sample_type,expected_taxid
+ISOLATE_1,ISO1_S1_L002_R1_001.fastq.gz,ISO1_S1_L002_R2_001.fastq.gz,illumina,isolate,562
+ISOLATE_1,ISO1_S1_L003_R1_001.fastq.gz,ISO1_S1_L003_R2_001.fastq.gz,illumina,isolate,562
+ISOLATE_1,ISO1_S1_L004_R1_001.fastq.gz,ISO1_S1_L004_R2_001.fastq.gz,illumina,isolate,562
 ```
 
 ### Full samplesheet
@@ -47,13 +47,13 @@ ISOLATE_1,ISO1_S1_L004_R1_001.fastq.gz,ISO1_S1_L004_R2_001.fastq.gz,illumina,iso
 A samplesheet mixing platforms and sample types may look something like the one below.
 
 ```csv title="samplesheet.csv"
-sample,fastq_1,fastq_2,platform,sample_type,expected_species,reference,genome_size
-ISOLATE_1,ISO1_R1.fastq.gz,ISO1_R2.fastq.gz,illumina,isolate,Escherichia coli,,
+sample,fastq_1,fastq_2,platform,sample_type,expected_taxid,reference,genome_size
+ISOLATE_1,ISO1_R1.fastq.gz,ISO1_R2.fastq.gz,illumina,isolate,562,,
 ISOLATE_2,ISO2.fastq.gz,,nanopore,isolate,1280,GCF_002310435.1,
-ISOLATE_3,ISO3_R1.fastq.gz,ISO3_R2.fastq.gz,illumina,isolate,Klebsiella pneumoniae,/refs/kpn_local.fasta,5500000
+ISOLATE_3,ISO3_R1.fastq.gz,ISO3_R2.fastq.gz,illumina,isolate,573,/refs/kpn_local.fasta,5500000
 GUT_1,GUT1_R1.fastq.gz,GUT1_R2.fastq.gz,illumina,metagenomic,,,
 STOOL_16S,STOOL_16S.fastq.gz,,nanopore,amplicon_16s,,,
-SARS2_1,SARS2_1_R1.fastq.gz,SARS2_1_R2.fastq.gz,illumina,amplicon_other,Severe acute respiratory syndrome coronavirus 2,,
+SARS2_1,SARS2_1_R1.fastq.gz,SARS2_1_R2.fastq.gz,illumina,amplicon_other,2697049,,
 ```
 
 An [example samplesheet](../assets/samplesheet.csv) has been provided with the pipeline.

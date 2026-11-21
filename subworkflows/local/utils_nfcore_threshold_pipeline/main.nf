@@ -108,8 +108,17 @@ workflow PIPELINE_INITIALISATION {
     // Create channel from input file provided through params.input
     //
 
+    def samplesheet_rows = samplesheetToList(input, "${projectDir}/assets/schema_input.json")
+
+    // expected_taxid can only be checked via the species-ID manifest
+    // (accession -> taxid): sylph's own output has no taxonomy. Fail up
+    // front rather than partway through the run.
+    if (!params.skip_species_id && !params.species_id_manifest && samplesheet_rows.any { row -> row[0].expected_taxid }) {
+        error("The samplesheet has expected_taxid values, but --species_id_manifest was not set. The manifest (accession -> taxid/species_taxid) is needed to check them; provide one or remove expected_taxid.")
+    }
+
     channel
-        .fromList(samplesheetToList(input, "${projectDir}/assets/schema_input.json"))
+        .fromList(samplesheet_rows)
         .map {
             meta, fastq_1, fastq_2 ->
                 if (meta.platform == 'nanopore' && fastq_2) {
@@ -201,7 +210,7 @@ def validateInputSamplesheet(input) {
 
     // Every samplesheet-provided field must agree across a sample's runs -
     // they describe the sample, not the run.
-    ['platform', 'sample_type', 'expected_species', 'reference', 'genome_size'].each { key ->
+    ['platform', 'sample_type', 'expected_taxid', 'reference', 'genome_size'].each { key ->
         if (metas.collect { meta -> meta[key] }.unique().size() != 1) {
             error("Please check input samplesheet -> Multiple runs of a sample must have the same ${key}: ${metas[0].id}")
         }
