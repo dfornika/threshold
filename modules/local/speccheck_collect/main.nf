@@ -7,8 +7,14 @@ process SPECCHECK_COLLECT {
     // from PyPI + procps-ng). Not the upstream happykhan/speccheck image: it
     // has no `ps`, which Nextflow's task wrapper requires inside containers
     // when trace/timeline/report is enabled (the default).
+    // Singularity/Apptainer: the SIF as a plain HTTPS blob (the same image as
+    // oras://community.wave.seqera.io/library/procps-ng_pip_speccheck-qc:1d0d602d57974343),
+    // like the other Seqera containers here. oras:// first requests a token
+    // from Seqera's auth service, which answers 401 if the client sends any
+    // credentials it doesn't accept (e.g. APPTAINER_DOCKER_USERNAME/PASSWORD
+    // set for Docker Hub); the HTTPS blob needs no auth at all.
     container "${ workflow.containerEngine in ['singularity', 'apptainer'] && !task.ext.singularity_pull_docker_container ?
-        'oras://community.wave.seqera.io/library/procps-ng_pip_speccheck-qc:1d0d602d57974343' :
+        'https://community-cr-prod.seqera.io/docker/registry/v2/blobs/sha256/6b/6b244772387927d43c71a13f573e48c2f0eea6cb8c0fd43d369eaa42e55bb952/data' :
         'community.wave.seqera.io/library/procps-ng_pip_speccheck-qc:42455f7a85228765' }"
 
     input:

@@ -3,7 +3,7 @@ process SPECCHECK_SUMMARY {
 
     conda "${moduleDir}/environment.yml"
     container "${ workflow.containerEngine in ['singularity', 'apptainer'] && !task.ext.singularity_pull_docker_container ?
-        'oras://community.wave.seqera.io/library/procps-ng_pip_speccheck-qc:1d0d602d57974343' :
+        'https://community-cr-prod.seqera.io/docker/registry/v2/blobs/sha256/6b/6b244772387927d43c71a13f573e48c2f0eea6cb8c0fd43d369eaa42e55bb952/data' :
         'community.wave.seqera.io/library/procps-ng_pip_speccheck-qc:42455f7a85228765' }"
 
     input:
