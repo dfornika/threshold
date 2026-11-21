@@ -27,6 +27,7 @@ Prints one tab-separated line:
 import argparse
 import csv
 import os
+import re
 import sys
 
 NA = "NA"
@@ -39,8 +40,18 @@ def load_manifest(path):
         return {row["accession"]: row for row in csv.DictReader(fh)}
 
 
+ASSEMBLY_ACCESSION = re.compile(r"GC[AF]_\d+\.\d+")
+
+
 def accession_from_path(path):
+    """Genome file name -> NCBI assembly accession. Handles plain names
+    (GCF_000005845.2.fasta) as well as NCBI/GTDB-style ones
+    (GCF_011064845.1_genomic.fna.gz, GCF_000005845.2_ASM584v2_genomic.fna.gz).
+    Falls back to the extension-stripped file name if there's no accession in it."""
     name = os.path.basename(path)
+    match = ASSEMBLY_ACCESSION.search(name)
+    if match:
+        return match.group(0)
     for suffix in (".gz", ".fasta", ".fna", ".fa"):
         name = name.removesuffix(suffix)
     return name
