@@ -34,22 +34,16 @@
             [
                 "dehost",
                 "dehost/SAMPLE_ONT.dehost.stats.tsv",
-                "dehost/SAMPLE_ONT.dehosted.fastq.gz",
                 "dehost/SAMPLE_PE.dehost.stats.tsv",
-                "dehost/SAMPLE_PE.dehosted_R1.fastq.gz",
-                "dehost/SAMPLE_PE.dehosted_R2.fastq.gz",
                 "dehost/dehost_summary.tsv",
                 "fastp",
                 "fastp/SAMPLE_PE.fastp.html",
                 "fastp/SAMPLE_PE.fastp.json",
                 "fastp/SAMPLE_PE.fastp.log",
-                "fastp/SAMPLE_PE_R1.fastp.fastq.gz",
-                "fastp/SAMPLE_PE_R2.fastp.fastq.gz",
                 "fastp/SAMPLE_PE_final.fastp.html",
                 "fastp/SAMPLE_PE_final.fastp.json",
                 "fastp/SAMPLE_PE_final.fastp.log",
                 "fastplong",
-                "fastplong/SAMPLE_ONT.fastplong.fastq.gz",
                 "fastplong/SAMPLE_ONT.fastplong.html",
                 "fastplong/SAMPLE_ONT.fastplong.json",
                 "fastplong/SAMPLE_ONT.fastplong.log",
@@ -234,16 +228,10 @@
             ],
             [
                 "SAMPLE_ONT.dehost.stats.tsv:md5,2d077ed2b98ad06075b80b8a2ad57f09",
-                "SAMPLE_ONT.dehosted.fastq.gz:md5,3237001438691054c6db76caadf74292",
                 "SAMPLE_PE.dehost.stats.tsv:md5,a33a9699fbea12be2e862d7d8180e33b",
-                "SAMPLE_PE.dehosted_R1.fastq.gz:md5,c8a508d6514274e237b455b5e99c78e8",
-                "SAMPLE_PE.dehosted_R2.fastq.gz:md5,7bea9f86923f8682b84c68564f1f16d7",
                 "dehost_summary.tsv:md5,f0653370a8b8a848d7df5af026d191a6",
                 "SAMPLE_PE.fastp.json:md5,04dde2d1f0d25d93ecc87de86f78b883",
-                "SAMPLE_PE_R1.fastp.fastq.gz:md5,ca5301287862d63d40c93916739ca0d9",
-                "SAMPLE_PE_R2.fastp.fastq.gz:md5,e12dbcdb09a6ea38615e72dd390f8df8",
                 "SAMPLE_PE_final.fastp.json:md5,d6acc452adb15cecefd53aa3b1834672",
-                "SAMPLE_ONT.fastplong.fastq.gz:md5,79c88f89b8fd682992bcbda6b0547a41",
                 "SAMPLE_ONT.fastplong.json:md5,142166c0adc26a273717a11c4243b9f0",
                 "SAMPLE_ONT_final.fastplong.json:md5,f79ea432f4000f7c229fdb11a44ce2c1",
                 "sample_summary.csv:md5,f8ea7857575500873ee971593db154cc",
@@ -286,7 +274,7 @@
                 "SAMPLE_PE.tsv:md5,a6fed46148a3614a3516c0c26919180f"
             ]
         ],
-        "timestamp": "2026-11-21T13:29:38.737462282",
+        "timestamp": "2026-11-21T14:52:37.905198505",
         "meta": {
             "nf-test": "0.9.5",
             "nextflow": "26.04.4"

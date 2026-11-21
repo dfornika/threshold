@@ -28,6 +28,8 @@ status and known caveats.
    raw reads and again on the final trimmed/dehosted reads that flow downstream.
 2. **Host read removal (dehosting)** — [`minimap2`](https://github.com/lh3/minimap2)
    against a host reference (`--dehost_reference`); toggle with `--skip_dehosting`.
+   The dehosted reads are only published on request (`--publish_dehosted_reads`,
+   or per sample in the samplesheet); reads from before dehosting never are.
 3. **Species ID + check** — [`sylph`](https://github.com/bluenote-1577/sylph)
    against a reference-genome database (`--sylph_db`); the top hit is compared
    with the samplesheet's `expected_taxid` (an NCBI taxid, resolved via

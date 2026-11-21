@@ -234,6 +234,12 @@
                     "help_text": "For real runs, point this at a masked human reference (e.g. the masked T2T-CHM13+HLA reference distributed with hostile). Pin the reference version for reproducibility.",
                     "fa_icon": "fas fa-dna"
                 },
+                "publish_dehosted_reads": {
+                    "type": "boolean",
+                    "description": "Also publish the final (dehosted) reads to dehost/. Off by default; can also be turned on per sample with the samplesheet's publish_dehosted_reads column.",
+                    "help_text": "Trimmed reads from before dehosting still contain host reads and are never published while dehosting runs. With --skip_dehosting the trimmed reads are the final reads, so this option publishes those instead (to fastp/ or fastplong/).",
+                    "fa_icon": "fas fa-file-export"
+                },
                 "dehost_scrub_headers": {
                     "type": "boolean",
                     "description": "Replace read headers with anonymised indices in the dehosted reads (off by default to preserve provenance).",
