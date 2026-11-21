@@ -12,7 +12,7 @@ files, and produces a per-sample summary of what each library is and what's in
 it. Results from every stage are collated by [`MultiQC`](http://multiqc.info/)
 and into a single `sample_summary.csv`.
 
-The pipeline doesn't try to work out *what* each library is from the reads:
+The pipeline doesn't try to work out _what_ each library is from the reads:
 the samplesheet says so (platform, sample type, expected species - see
 [Usage](#usage)), and the pipeline routes each sample accordingly and checks
 the reads against those claims. In deployment, the automation system that
