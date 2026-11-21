@@ -120,6 +120,13 @@
                     "enum": ["symlink", "rellink", "link", "copy", "copyNoFollow", "move"],
                     "hidden": true
                 },
+                "task_tmpdir": {
+                    "type": "boolean",
+                    "default": true,
+                    "description": "Give each task a TMPDIR inside its own work directory.",
+                    "help_text": "Nextflow forwards the host TMPDIR into Apptainer/Singularity containers but only mounts the task work directory, so a host TMPDIR elsewhere (e.g. under $HOME) is missing inside the container and tools writing temporary files fail. With this on, each task uses a tmp/ directory inside its work directory, which is always mounted and cleaned up with it. Set to false to keep the host TMPDIR.",
+                    "fa_icon": "fas fa-folder-open"
+                },
                 "email_on_fail": {
                     "type": "string",
                     "description": "Email address for completion summary, only when pipeline fails.",
