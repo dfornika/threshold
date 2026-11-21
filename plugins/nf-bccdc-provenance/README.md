@@ -41,7 +41,15 @@ bccdcProvenance {
 
 The pipeline's `nextflow.config` loads this plugin, so it must be installed before running the pipeline. It isn't published anywhere yet, so Nextflow can't download it: without it, a run stops immediately with `Plugin with id nf-bccdc-provenance not found in any repository`.
 
-Needs a JDK (17+). The Gradle wrapper downloads Gradle itself.
+Needs a JDK (17+) to run Gradle; the Gradle wrapper downloads Gradle itself.
+
+The build _compiles_ with a Java 21 toolchain, whichever JDK runs Gradle: Nextflow's Gradle plugin fixes that version, and targets Java 17 bytecode so the plugin runs on any Nextflow JVM. If Gradle can't find a JDK 21 (e.g. a machine with only Java 25), it downloads one automatically, via the Foojay toolchain resolver in `settings.gradle`, and caches it in `~/.gradle/jdks`. Without internet access, point Gradle at an existing JDK 21 instead, e.g. a cluster module:
+
+```bash
+./gradlew install -Porg.gradle.java.installations.paths=/path/to/jdk-21
+```
+
+or set `org.gradle.java.installations.paths=/path/to/jdk-21` in `~/.gradle/gradle.properties`.
 
 ```bash
 cd plugins/nf-bccdc-provenance

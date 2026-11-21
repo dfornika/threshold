@@ -1,1 +1,10 @@
+// The nextflow-plugin Gradle plugin compiles with a Java 21 toolchain (and
+// targets Java 17 bytecode), whatever JDK runs Gradle. Let Gradle download a
+// JDK 21 (via the Foojay Disco API, cached in ~/.gradle/jdks) when none is
+// installed, e.g. on a machine that only has Java 25. Offline, point Gradle
+// at an existing JDK 21 instead - see README.md.
+plugins {
+    id 'org.gradle.toolchains.foojay-resolver-convention' version '1.0.0'
+}
+
 rootProject.name = 'nf-bccdc-provenance'
