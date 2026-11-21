@@ -1,10 +1,10 @@
 Run Name: $runName
 
 <% if (success){
-    out << "## BCCDC-PHL/gx-threshold execution completed successfully! ##"
+    out << "## BCCDC-PHL/threshold execution completed successfully! ##"
 } else {
     out << """####################################################
-## BCCDC-PHL/gx-threshold execution completed unsuccessfully! ##
+## BCCDC-PHL/threshold execution completed unsuccessfully! ##
 ####################################################
 The exit status of the task that caused the workflow execution to fail was: $exitStatus.
 The full error message was:
@@ -27,5 +27,5 @@ Pipeline Configuration:
 <% out << summary.collect{ k,v -> " - $k: $v" }.join("\n") %>
 
 --
-BCCDC-PHL/gx-threshold
-https://github.com/BCCDC-PHL/gx-threshold
+BCCDC-PHL/threshold
+https://github.com/BCCDC-PHL/threshold

@@ -1,8 +1,8 @@
 {
     "$schema": "https://json-schema.org/draft/2020-12/schema",
-    "$id": "https://raw.githubusercontent.com/BCCDC-PHL/gx-threshold/main/nextflow_schema.json",
-    "title": "BCCDC-PHL/gx-threshold pipeline parameters",
-    "description": "Entryway to the GX system",
+    "$id": "https://raw.githubusercontent.com/BCCDC-PHL/threshold/main/nextflow_schema.json",
+    "title": "BCCDC-PHL/threshold pipeline parameters",
+    "description": "QC and routine analysis for microbial genomics",
     "type": "object",
     "$defs": {
         "input_output_options": {

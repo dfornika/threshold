@@ -1,5 +1,5 @@
 //
-// Subworkflow with functionality specific to the BCCDC-PHL/gx-threshold pipeline
+// Subworkflow with functionality specific to the BCCDC-PHL/threshold pipeline
 //
 
 /*

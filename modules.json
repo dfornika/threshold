@@ -1,6 +1,6 @@
 {
-    "name": "BCCDC-PHL/gx-threshold",
-    "homePage": "https://github.com/BCCDC-PHL/gx-threshold",
+    "name": "BCCDC-PHL/threshold",
+    "homePage": "https://github.com/BCCDC-PHL/threshold",
     "repos": {
         "https://github.com/nf-core/modules.git": {
             "modules": {

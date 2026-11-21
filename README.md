@@ -1,10 +1,10 @@
 <p align="center">
-  <img src="https://raw.githubusercontent.com/dfornika/gx-threshold/refs/heads/main/docs/images/threshold.png" width="300" alt="Accessibility Description" />
+  <img src="https://raw.githubusercontent.com/dfornika/threshold/refs/heads/main/docs/images/threshold.png" width="300" alt="Accessibility Description" />
 </p>
 
 ## Introduction
 
-**gx-threshold** is a QC and routine-analysis pipeline for microbial genomics,
+**threshold** is a QC and routine-analysis pipeline for microbial genomics,
 intended as a standard "entrypoint" that runs on every sequenced library as it
 arrives in a genomics analysis platform. It works on both **Illumina** and
 **Oxford Nanopore** reads throughout, takes a simple samplesheet of FASTQ
@@ -76,10 +76,19 @@ optional. `expected_taxid` is an NCBI taxid (names aren't accepted); checking it
 needs `--species_id_manifest`, which maps the sylph database's accessions to
 NCBI taxids. See [`docs/usage.md`](docs/usage.md) for details.
 
+Before the first run, install the pipeline's provenance plugin, which is built
+from this repo (it isn't published yet). It needs a JDK (17+):
+
+```bash
+(cd plugins/nf-bccdc-provenance && ./gradlew install)
+```
+
+See [`plugins/nf-bccdc-provenance/README.md`](plugins/nf-bccdc-provenance/README.md).
+
 Now, you can run the pipeline using:
 
 ```bash
-nextflow run BCCDC-PHL/gx-threshold \
+nextflow run BCCDC-PHL/threshold \
    -profile <conda/docker/singularity/apptainer> \
    --input samplesheet.csv \
    --sylph_db <db.syldb> \
@@ -95,7 +104,7 @@ If you would like to contribute to this pipeline, please see the [contributing g
 ## Citations
 
 <!-- TODO nf-core: Add citation for pipeline after first release. Uncomment lines below and update Zenodo doi and badge at the top of this file. -->
-<!-- If you use BCCDC-PHL/gx-threshold for your analysis, please cite it using the following doi: [10.5281/zenodo.XXXXXX](https://doi.org/10.5281/zenodo.XXXXXX) -->
+<!-- If you use BCCDC-PHL/threshold for your analysis, please cite it using the following doi: [10.5281/zenodo.XXXXXX](https://doi.org/10.5281/zenodo.XXXXXX) -->
 
 <!-- TODO nf-core: Add bibliography of tools and data used in your pipeline -->
 

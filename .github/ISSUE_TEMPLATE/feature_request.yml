@@ -1,5 +1,5 @@
 name: Feature request
-description: Suggest an idea for the BCCDC-PHL/gx-threshold pipeline
+description: Suggest an idea for the BCCDC-PHL/threshold pipeline
 labels: enhancement
 body:
   - type: textarea

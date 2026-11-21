@@ -1,0 +1,16 @@
+plugins {
+    id 'io.nextflow.nextflow-plugin' version '1.0.0-beta.16'
+}
+
+version = project.file('VERSION').text.trim()
+
+nextflowPlugin {
+    // Oldest Nextflow version threshold's CI tests against.
+    nextflowVersion = '25.10.0'
+
+    provider = 'BCCDC-PHL'
+    className = 'bccdc.provenance.ProvenancePlugin'
+    extensionPoints = [
+        'bccdc.provenance.ProvenanceObserverFactory'
+    ]
+}

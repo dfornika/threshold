@@ -5,9 +5,9 @@ nf_core_version: 4.0.2
 lint:
   files_unchanged:
     - CODE_OF_CONDUCT.md
-    - assets/nf-core-gx-threshold_logo_light.png
-    - docs/images/nf-core-gx-threshold_logo_light.png
-    - docs/images/nf-core-gx-threshold_logo_dark.png
+    - assets/nf-core-threshold_logo_light.png
+    - docs/images/nf-core-threshold_logo_light.png
+    - docs/images/nf-core-threshold_logo_dark.png
     - .github/ISSUE_TEMPLATE/bug_report.yml
     - .github/PULL_REQUEST_TEMPLATE.md
     - assets/email_template.txt
@@ -19,9 +19,9 @@ lint:
     - report_comment
   files_exist:
     - CODE_OF_CONDUCT.md
-    - assets/nf-core-gx-threshold_logo_light.png
-    - docs/images/nf-core-gx-threshold_logo_light.png
-    - docs/images/nf-core-gx-threshold_logo_dark.png
+    - assets/nf-core-threshold_logo_light.png
+    - docs/images/nf-core-threshold_logo_light.png
+    - docs/images/nf-core-threshold_logo_dark.png
     - .github/ISSUE_TEMPLATE/config.yml
     - .github/workflows/awstest.yml
     - .github/workflows/awsfulltest.yml
@@ -34,8 +34,8 @@ lint:
 
 template:
   org: BCCDC-PHL
-  name: gx-threshold
-  description: Entryway to the GX system
+  name: threshold
+  description: QC and routine analysis for microbial genomics
   author: Dan Fornika
   version: 0.1.0
   force: true

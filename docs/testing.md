@@ -1,4 +1,4 @@
-# BCCDC-PHL/gx-threshold: Testing
+# BCCDC-PHL/threshold: Testing
 
 This page describes the test datasets, how they are generated, the overall testing
 strategy, and how to run the tests. It intentionally stays high level — the specific
