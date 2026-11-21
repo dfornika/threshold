@@ -3,8 +3,8 @@ process SPECCHECK_SUMMARY {
 
     conda "${moduleDir}/environment.yml"
     container "${ workflow.containerEngine in ['singularity', 'apptainer'] && !task.ext.singularity_pull_docker_container ?
-        'docker://happykhan/speccheck:1.3.0' :
-        'docker.io/happykhan/speccheck:1.3.0' }"
+        'oras://community.wave.seqera.io/library/procps-ng_pip_speccheck-qc:1d0d602d57974343' :
+        'community.wave.seqera.io/library/procps-ng_pip_speccheck-qc:42455f7a85228765' }"
 
     input:
     path collected, stageAs: 'collected/*'   // per-sample CSVs from SPECCHECK_COLLECT

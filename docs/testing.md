@@ -400,14 +400,16 @@ checks and a generic fastp Q30 rule.
 - **Failures** retry, then are skipped for that sample (its speccheck columns
   are `NA`), like assembly.
 
-**Container caveat:** the upstream `happykhan/speccheck:1.3.0` image has no
-`ps`, which Nextflow's task wrapper requires inside containers whenever
-trace/timeline/report is enabled (the default) - tasks exit 1 with "Command
-'ps' required by nextflow to collect task metrics cannot be found". The conda
-environment includes `procps-ng`; a container with it is still needed.
+**Container:** a Seqera community container built from the modules'
+`environment.yml` (`speccheck-qc==1.3.0` from PyPI plus `procps-ng`), not the
+upstream `happykhan/speccheck:1.3.0` image. That image has no `ps`, which
+Nextflow's task wrapper requires inside containers whenever
+trace/timeline/report is enabled (the default): tasks exited 1 with "Command
+'ps' required by nextflow to collect task metrics cannot be found".
 
 **Validated** with `-profile test_full,dev,apptainer` + assembly + reference
-fetching (execution reports off, because of the caveat above): two assembled
+fetching, execution reports on (the Seqera container, pulled via `oras://`;
+its Docker build also checked for `ps` and speccheck 1.3.0): two assembled
 *K. pneumoniae* samples (`match`, `not_checked`) were checked - `FAIL` against
 the *K. pneumoniae* thresholds (GC >= 55.89, length >= 4.9 Mb; expected for a
 3.5 kb test assembly), QualiBact scheme "Klebsiella pneumoniae"; a `mismatch`

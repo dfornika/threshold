@@ -3,11 +3,13 @@ process SPECCHECK_COLLECT {
     label 'process_single'
 
     conda "${moduleDir}/environment.yml"
-    // Docker Hub image published by speccheck's authors (there's no
-    // biocontainer); fully qualified because the default registry is quay.io.
+    // Seqera community container built from environment.yml (speccheck-qc
+    // from PyPI + procps-ng). Not the upstream happykhan/speccheck image: it
+    // has no `ps`, which Nextflow's task wrapper requires inside containers
+    // when trace/timeline/report is enabled (the default).
     container "${ workflow.containerEngine in ['singularity', 'apptainer'] && !task.ext.singularity_pull_docker_container ?
-        'docker://happykhan/speccheck:1.3.0' :
-        'docker.io/happykhan/speccheck:1.3.0' }"
+        'oras://community.wave.seqera.io/library/procps-ng_pip_speccheck-qc:1d0d602d57974343' :
+        'community.wave.seqera.io/library/procps-ng_pip_speccheck-qc:42455f7a85228765' }"
 
     input:
     // QC outputs speccheck can parse (QUAST report.tsv, sylph profile, fastp
