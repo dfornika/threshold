@@ -24,6 +24,7 @@ process SPECIES_CHECK {
     def expected_arg = meta.expected_taxid ? "--expected-taxid ${meta.expected_taxid}" : ''
     // The script applies the precedence: the sample's own expected_taxid,
     // else its project's taxids from project_expected_taxids.csv.
+    def dbs_arg      = meta.sylph_dbs ? "--sylph-dbs '${meta.sylph_dbs}'" : ''
     def project_arg  = project_taxids && meta.project_id ? "--project-id '${meta.project_id}' --project-expected-taxids ${project_taxids}" : ''
     """
     check_species.py \\
@@ -32,6 +33,7 @@ process SPECIES_CHECK {
         --sample-type ${meta.sample_type} \\
         ${expected_arg} \\
         ${project_arg} \\
+        ${dbs_arg} \\
         ${manifest_arg} \\
         ${profile} > ${prefix}.species_check.tsv
     """
@@ -39,6 +41,6 @@ process SPECIES_CHECK {
     stub:
     def prefix = task.ext.prefix ?: "${meta.id}"
     """
-    printf '%s\\t%s\\tstub\\tNA\\tNA\\tNA\\tNA\\tNA\\tNA\\t0\\tNA\\tNA\\n' "${meta.id}" "${meta.platform}" > ${prefix}.species_check.tsv
+    printf '%s\\t%s\\tstub\\tNA\\tNA\\tNA\\tNA\\tNA\\tNA\\t0\\tNA\\tNA\\tNA\\tNA\\n' "${meta.id}" "${meta.platform}" > ${prefix}.species_check.tsv
     """
 }

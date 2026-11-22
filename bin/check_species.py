@@ -33,10 +33,15 @@ Verdicts:
   no_hit       - sylph reported nothing above its own thresholds
   not_checked  - no expected taxa; the top hit is still reported
 
+Hits are ranked by sylph's Sequence_abundance (share of reads), which, unlike
+Taxonomic_abundance, doesn't favour tiny genomes when several databases (e.g.
+bacterial and viral) are profiled together.
+
 Prints one tab-separated line:
   sample, platform, verdict, expected_taxid (;-separated), accession,
   species_taxid, species_name, adjusted_ani, taxonomic_abundance, n_hits,
-  expected_source (sample/project/NA), matched_taxid
+  expected_source (sample/project/NA), matched_taxid, sequence_abundance,
+  sylph_dbs (;-separated database file names, or NA)
 """
 
 import argparse
@@ -89,9 +94,14 @@ def load_hits(path, manifest):
                 "lineage": {t for t in (entry.get("lineage_taxids") or "").split(";") if t},
                 "adjusted_ani": row["Adjusted_ANI"],
                 "taxonomic_abundance": float(row["Taxonomic_abundance"]),
+                "sequence_abundance": float(row["Sequence_abundance"]),
             }
         )
-    hits.sort(key=lambda h: h["taxonomic_abundance"], reverse=True)
+    # Rank by sequence abundance (the share of reads), not taxonomic abundance
+    # (genome copies, which weights by genome size): with viral and bacterial
+    # databases together, a tiny viral genome with a few reads can out-rank a
+    # bacterium holding most of the reads on taxonomic abundance.
+    hits.sort(key=lambda h: (h["sequence_abundance"], h["taxonomic_abundance"]), reverse=True)
     return hits
 
 
@@ -150,6 +160,7 @@ def main():
     ap.add_argument("--sample-type", required=True)
     ap.add_argument("--expected-taxid", default="", help="the sample's own expected taxid (samplesheet); takes precedence over the project's")
     ap.add_argument("--project-id", default="", help="the sample's project_id")
+    ap.add_argument("--sylph-dbs", default="", help="names of the sylph databases the sample was profiled against (recorded in the output)")
     ap.add_argument("--project-expected-taxids", default=None, help="CSV of project_id,expected_taxid (one-to-many)")
     ap.add_argument("--manifest", default=None, help="species_db manifest.csv (accession -> taxid/species_taxid/species_name); required with --expected-taxid")
     ap.add_argument("profile", help="sylph profile TSV for this sample")
@@ -184,6 +195,8 @@ def main():
         str(len(hits)),
         source,
         matched or NA,
+        f"{top['sequence_abundance']:.4g}" if top else NA,
+        args.sylph_dbs or NA,
     ]
     print("\t".join(fields))
 

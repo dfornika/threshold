@@ -11,6 +11,8 @@
 include { UTILS_NFSCHEMA_PLUGIN     } from '../../nf-core/utils_nfschema_plugin'
 include { paramsSummaryMap          } from 'plugin/nf-schema'
 include { samplesheetToList         } from 'plugin/nf-schema'
+include { parseProjectSylphDbs      } from '../sylph_dbs'
+include { sylphDbProblems           } from '../sylph_dbs'
 include { paramsHelp                } from 'plugin/nf-schema'
 include { completionEmail           } from '../../nf-core/utils_nfcore_pipeline'
 include { completionSummary         } from '../../nf-core/utils_nfcore_pipeline'
@@ -129,6 +131,18 @@ workflow PIPELINE_INITIALISATION {
         def unknown = listed - used
         if (unknown) {
             log.warn("--project_expected_taxids lists project(s) with no samples in this samplesheet: ${unknown.join(', ')}")
+        }
+    }
+
+    // Sylph databases: --sylph_db is the default, --project_sylph_dbs gives
+    // projects their own. Check every non-16S sample ends up with at least one,
+    // that they exist and can be staged together (see subworkflows/local/sylph_dbs.nf).
+    if (!params.skip_species_id) {
+        def project_db_rows = params.project_sylph_dbs ? samplesheetToList(params.project_sylph_dbs, "${projectDir}/assets/schema_project_sylph_dbs.json") : []
+        def sylph_checks = sylphDbProblems(samplesheet_rows.collect { row -> row[0] }, parseProjectSylphDbs(project_db_rows), params.sylph_db)
+        sylph_checks.warnings.each { warning -> log.warn(warning) }
+        if (sylph_checks.errors) {
+            error("Problem with the sylph databases:\n  - " + sylph_checks.errors.join("\n  - "))
         }
     }
 

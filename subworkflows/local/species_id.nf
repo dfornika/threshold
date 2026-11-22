@@ -1,9 +1,15 @@
 //
 // Species identification + check against the samplesheet: sylph profiles
-// each sample against the reference-genome database, then SPECIES_CHECK
-// compares the top hit with the samplesheet's `expected_taxid`. What a
-// sample *is* comes from the samplesheet; this stage is there to catch
-// sample swaps, contamination and mislabelling.
+// each sample against its reference-genome database(s), then SPECIES_CHECK
+// compares the top hit with the sample's expected taxa (its own
+// `expected_taxid`, else its project's). What a sample *is* comes from the
+// samplesheet; this stage is there to catch sample swaps, contamination and
+// mislabelling.
+//
+// Databases: --sylph_db is the default; projects listed in
+// --project_sylph_dbs are screened ONLY against their own databases ('default'
+// stands for --sylph_db) - see sylph_dbs.nf. All of a sample's databases go to
+// one sylph call, so the profile is a single joint one across databases.
 //
 // Skipped for `amplicon_16s` samples: a whole-genome database recovers
 // almost nothing from ~1.5kb of one gene, so any hit would be noise.
@@ -11,6 +17,9 @@
 
 include { SYLPH_PROFILE } from '../../modules/nf-core/sylph/profile/main'
 include { SPECIES_CHECK } from '../../modules/local/species_check/main'
+include { samplesheetToList } from 'plugin/nf-schema'
+include { parseProjectSylphDbs } from './sylph_dbs'
+include { resolveSylphDbs } from './sylph_dbs'
 
 workflow SPECIES_ID {
 
@@ -27,13 +36,32 @@ workflow SPECIES_ID {
     def ch_sylph_profile = channel.empty()
 
     if (!params.skip_species_id) {
-        if (!params.sylph_db) {
-            error("Species ID is enabled but --sylph_db was not set. Provide a sylph genome database (.syldb) or run with --skip_species_id.")
-        }
-        def ch_sylph_db = channel.value(file(params.sylph_db, checkIfExists: true))
-        def ch_to_profile = ch_clean_reads.filter { meta, _reads -> meta.sample_type != 'amplicon_16s' }
+        // Each sample's databases: its project's (--project_sylph_dbs) or the
+        // default (--sylph_db); the startup checks guarantee at least one.
+        def project_db_rows = params.project_sylph_dbs ? samplesheetToList(params.project_sylph_dbs, "${projectDir}/assets/schema_project_sylph_dbs.json") : []
+        def project_dbs = parseProjectSylphDbs(project_db_rows)
 
-        def sylph_profile_out = SYLPH_PROFILE(ch_to_profile, ch_sylph_db)
+        // SYLPH_PROFILE takes the reads and the databases as separate inputs,
+        // so split each sample into two channels with multiMap - it emits
+        // both in lockstep, keeping a sample's reads paired with its own
+        // database list. The database names go in meta (sylph's output
+        // doesn't say which databases a hit came from) for the species-check
+        // output.
+        def ch_to_profile = ch_clean_reads
+            .filter { meta, _reads -> meta.sample_type != 'amplicon_16s' }
+            .map { meta, reads ->
+                def dbs = resolveSylphDbs(meta, project_dbs, params.sylph_db)
+                if (!dbs) {
+                    error("No sylph database for sample ${meta.id}: set --sylph_db, or list a database for its project in --project_sylph_dbs")
+                }
+                tuple(meta + [sylph_dbs: dbs.collect { db -> file(db).name }.join(';')], reads, dbs.collect { db -> file(db, checkIfExists: true) })
+            }
+            .multiMap { meta, reads, dbs ->
+                reads:     tuple(meta, reads)
+                databases: dbs
+            }
+
+        def sylph_profile_out = SYLPH_PROFILE(ch_to_profile.reads, ch_to_profile.databases)
         ch_sylph_profile = sylph_profile_out.profile_out
         ch_multiqc_files = ch_multiqc_files.mix(sylph_profile_out.profile_out)
 
@@ -50,7 +78,7 @@ workflow SPECIES_ID {
                 name: 'species_check_summary.tsv',
                 storeDir: "${outdir}/species_id",
                 sort: { file -> file.name },   // by file name (= sample), not full work-dir path, so row order is stable across runs
-                seed: "sample\tplatform\tverdict\texpected_taxid\taccession\tspecies_taxid\tspecies_name\tadjusted_ani\ttaxonomic_abundance\tn_hits\texpected_source\tmatched_taxid\n"
+                seed: "sample\tplatform\tverdict\texpected_taxid\taccession\tspecies_taxid\tspecies_name\tadjusted_ani\ttaxonomic_abundance\tn_hits\texpected_source\tmatched_taxid\tsequence_abundance\tsylph_dbs\n"
             )
             .ifEmpty([])
     }

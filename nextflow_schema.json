@@ -262,8 +262,18 @@
                     "type": "string",
                     "format": "path",
                     "exists": true,
-                    "description": "Sylph genome database (.syldb) of reference genomes to compare reads against. Required unless --skip_sylph is set.",
+                    "description": "Default sylph genome database (.syldb) of reference genomes to compare reads against. Required unless --skip_species_id is set, or every sample's project lists its own databases in --project_sylph_dbs.",
                     "fa_icon": "fas fa-dna"
+                },
+                "project_sylph_dbs": {
+                    "type": "string",
+                    "format": "file-path",
+                    "exists": true,
+                    "mimetype": "text/csv",
+                    "schema": "assets/schema_project_sylph_dbs.json",
+                    "description": "Optional CSV of project_id,sylph_db (one-to-many): the sylph databases each project's samples are screened against, only these, unless the reserved value 'default' is listed.",
+                    "help_text": "A project listed in this file is screened ONLY against the databases listed for it, not --sylph_db; use the reserved value 'default' as a sylph_db to include --sylph_db as well. Samples whose project isn't listed (or that have none) use --sylph_db. All of a sample's databases are profiled in one sylph call, so the result is a single combined profile. Relative paths are resolved from the directory you launch the pipeline in.",
+                    "fa_icon": "fas fa-database"
                 },
                 "project_expected_taxids": {
                     "type": "string",

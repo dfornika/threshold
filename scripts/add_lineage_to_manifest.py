@@ -51,6 +51,17 @@ def load_lineages(taxdump_dir, wanted):
     return lineages
 
 
+def load_scientific_names(taxdump_dir, wanted):
+    """taxid -> scientific name for the taxids in `wanted`, from names.dmp."""
+    names = {}
+    with open(os.path.join(taxdump_dir, "names.dmp")) as fh:
+        for line in fh:
+            parts = [p.strip() for p in line.split("|")]
+            if len(parts) >= 4 and parts[3] == "scientific name" and parts[0] in wanted:
+                names[parts[0]] = parts[1]
+    return names
+
+
 def lineage_for(row, lineages, merged):
     """`;`-separated ancestors of the row's taxid (or species_taxid), '' if unknown."""
     for field in ("taxid", "species_taxid"):
