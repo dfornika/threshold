@@ -37,6 +37,7 @@ files the sylph database was built from).
 import argparse
 import csv
 import gzip
+import os
 import re
 import sys
 
@@ -124,17 +125,15 @@ def main():
     ap.add_argument("metadata", nargs="+", help="GTDB metadata TSV(s), optionally gzipped (bac120_metadata*, ar53_metadata*)")
     ap.add_argument("--representatives-only", action="store_true", help="keep only GTDB species representative genomes")
     ap.add_argument("--accessions", help="keep only assembly accessions found anywhere in this text file")
+    ap.add_argument("--taxdump", help="NCBI new_taxdump directory (taxidlineage.dmp, merged.dmp): adds a lineage_taxids column, "
+                                      "so the species check can match expected taxids at any rank (e.g. a family)")
     ap.add_argument("-o", "--output", help="output CSV (default: stdout)")
     args = ap.parse_args()
 
     csv.field_size_limit(sys.maxsize)
     wanted = read_wanted(args.accessions) if args.accessions else None
 
-    out = open(args.output, "w", newline="") if args.output else sys.stdout
-    writer = csv.DictWriter(out, fieldnames=OUTPUT_FIELDS)
-    writer.writeheader()
-
-    written, seen = 0, set()
+    rows, seen = [], set()
     for path in args.metadata:
         for row in manifest_rows(path, args.representatives_only):
             if row["accession"] in seen:
@@ -142,11 +141,23 @@ def main():
             if wanted is not None and row["accession"] not in wanted:
                 continue
             seen.add(row["accession"])
-            writer.writerow(row)
-            written += 1
+            rows.append(row)
 
+    fields = list(OUTPUT_FIELDS)
+    if args.taxdump:
+        sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
+        from add_lineage_to_manifest import LINEAGE_FIELD, add_lineages
+        resolved = add_lineages(rows, args.taxdump)
+        fields.append(LINEAGE_FIELD)
+        print(f"lineage found for {resolved} of {len(rows)} accessions", file=sys.stderr)
+
+    out = open(args.output, "w", newline="") if args.output else sys.stdout
+    writer = csv.DictWriter(out, fieldnames=fields)
+    writer.writeheader()
+    writer.writerows(rows)
     if out is not sys.stdout:
         out.close()
+    written = len(rows)
     print(f"wrote {written} accessions", file=sys.stderr)
     if wanted is not None:
         missing = wanted - seen

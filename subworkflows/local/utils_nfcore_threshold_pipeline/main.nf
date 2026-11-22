@@ -117,6 +117,21 @@ workflow PIPELINE_INITIALISATION {
         error("The samplesheet has expected_taxid values, but --species_id_manifest was not set. The manifest (accession -> taxid/species_taxid) is needed to check them; provide one or remove expected_taxid.")
     }
 
+    // --project_expected_taxids: validate its contents up front (schema), and
+    // like expected_taxid it can only be checked with a manifest.
+    if (params.project_expected_taxids) {
+        def project_rows = samplesheetToList(params.project_expected_taxids, "${projectDir}/assets/schema_project_expected_taxids.json")
+        if (!params.skip_species_id && !params.species_id_manifest && project_rows) {
+            error("--project_expected_taxids was given, but --species_id_manifest was not set. The manifest (accession -> taxid/species_taxid) is needed to check expected taxa; provide one or drop --project_expected_taxids.")
+        }
+        def listed = project_rows.collect { row -> row[0].toString() }.unique()
+        def used = samplesheet_rows.collect { row -> row[0].project_id }.findAll { p -> p }.collect { p -> p.toString() }.unique()
+        def unknown = listed - used
+        if (unknown) {
+            log.warn("--project_expected_taxids lists project(s) with no samples in this samplesheet: ${unknown.join(', ')}")
+        }
+    }
+
     def ch_samplesheet = channel
         .fromList(samplesheet_rows)
         .map {

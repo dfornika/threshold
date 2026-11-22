@@ -1,0 +1,23 @@
+{
+    "$schema": "https://json-schema.org/draft/2020-12/schema",
+    "$id": "https://raw.githubusercontent.com/BCCDC-PHL/threshold/main/assets/schema_project_expected_taxids.json",
+    "title": "BCCDC-PHL/threshold pipeline - params.project_expected_taxids schema",
+    "description": "Expected taxa per project: one row per project_id + expected_taxid pair; a project may appear on several rows.",
+    "type": "array",
+    "items": {
+        "type": "object",
+        "properties": {
+            "project_id": {
+                "type": "string",
+                "pattern": "^[A-Za-z0-9_.-]+$",
+                "errorMessage": "project_id may only contain letters, numbers, underscores, hyphens and dots (as in the samplesheet)"
+            },
+            "expected_taxid": {
+                "type": "integer",
+                "minimum": 1,
+                "errorMessage": "expected_taxid must be an NCBI taxid (a positive integer, e.g. 543 for Enterobacteriaceae)"
+            }
+        },
+        "required": ["project_id", "expected_taxid"]
+    }
+}

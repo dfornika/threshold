@@ -169,12 +169,23 @@ almost nothing from ~1.5kb of one gene, so any hit would be noise), then
 
 `expected_taxid` is an NCBI taxid only - names were dropped because they
 drift (NCBI now calls SARS-CoV-2's species "Betacoronavirus pandemicum") and
-are ambiguous. It's matched against the manifest's `species_taxid` or `taxid`
-for the hit's accession, so a strain/virus-level taxid matches too (e.g.
-`511145`, *E. coli* K-12, or `2697049`, SARS-CoV-2). sylph's output has no
-taxonomy, so `--species_id_manifest` is required whenever any sample has an
-`expected_taxid` - the run fails at startup without it. Collected into
+are ambiguous. A hit matches if the expected taxid is its `taxid`, its
+`species_taxid`, or any ancestor in the manifest's `lineage_taxids` (built
+from NCBI's taxonomy dump - `scripts/add_lineage_to_manifest.py`), so it
+works at any rank: strain (`511145`), species (`562`), genus, family (`543`,
+Enterobacteriaceae). Samples without their own `expected_taxid` use their
+project's taxids from `--project_expected_taxids` (one-to-many); with several,
+any match counts, and `matched_taxid` records which. sylph's output has no
+taxonomy, so `--species_id_manifest` is required whenever there are expected
+taxa - the run fails at startup without it. Collected into
 `${outdir}/species_id/species_check_summary.tsv`.
+
+Checked on `test_full` reads with project taxids: a *K. pneumoniae* sample in a
+project expecting `543` matched at family level (`source: project`); an *E.
+coli* sample in the same project but with its own `expected_taxid` of `1280`
+(*S. aureus*) came back `mismatch` (`source: sample` - its own taxid wins); a
+SARS-CoV-2 sample matched its project's `2697049`; a sample with no project
+was `not_checked`.
 
 **Validated** against `test_full`: all 4 samples `match` - the two
 SARS-CoV-2 samples deliberately use the virus-level (`2697049`) and

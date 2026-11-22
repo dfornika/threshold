@@ -110,5 +110,9 @@ It's now the only species-ID tool in the pipeline.
 `bin/check_species.py`) compares the top hit with the samplesheet's
 `expected_taxid` - collected into `${outdir}/species_id/species_check_summary.tsv`.
 `--species_id_manifest` (both `test` and `test_full` point it at `manifest.csv` in
-this directory) resolves accessions to `taxid` / `species_taxid`; it's required
-whenever a sample has an `expected_taxid`.
+this directory) resolves accessions to `taxid` / `species_taxid`, plus
+`lineage_taxids` (every NCBI ancestor taxid, `;`-separated) so expected taxids
+can match at any rank; it's required whenever there are expected taxa. The
+`lineage_taxids` column was added with
+`scripts/add_lineage_to_manifest.py --taxdump new_taxdump/` (NCBI taxonomy dump);
+rerun it after `build_dbs.py` regenerates the manifest.
