@@ -265,6 +265,16 @@
                     "description": "Sylph genome database (.syldb) of reference genomes to compare reads against. Required unless --skip_sylph is set.",
                     "fa_icon": "fas fa-dna"
                 },
+                "project_expected_taxids": {
+                    "type": "string",
+                    "format": "file-path",
+                    "exists": true,
+                    "mimetype": "text/csv",
+                    "schema": "assets/schema_project_expected_taxids.json",
+                    "description": "Optional CSV of project_id,expected_taxid (one-to-many): expected taxa for samples that don't have their own expected_taxid.",
+                    "help_text": "A project can be listed several times. A sample is checked against its project's taxids when it has no expected_taxid of its own; it matches if its species-ID hit is within any of them, at any rank (e.g. 543 accepts any Enterobacteriaceae), given a manifest with a lineage_taxids column. Needs --species_id_manifest.",
+                    "fa_icon": "fas fa-sitemap"
+                },
                 "species_id_manifest": {
                     "type": "string",
                     "format": "path",

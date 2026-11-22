@@ -32,8 +32,9 @@ status and known caveats.
    or per sample in the samplesheet); reads from before dehosting never are.
 3. **Species ID + check** — [`sylph`](https://github.com/bluenote-1577/sylph)
    against a reference-genome database (`--sylph_db`); the top hit is compared
-   with the samplesheet's `expected_taxid` (an NCBI taxid, resolved via
-   `--species_id_manifest`) and reported as `match` / `mismatch` /
+   with the samplesheet's `expected_taxid`, or the sample's project taxids from
+   `--project_expected_taxids` (NCBI taxids, matched at any rank - e.g. a
+   family - via `--species_id_manifest`) and reported as `match` / `mismatch` /
    `unresolved` / `no_hit` / `not_checked`, to catch sample swaps, contamination
    and mislabelling. Skipped for `amplicon_16s` samples; toggle with
    `--skip_species_id`.

@@ -37,7 +37,8 @@ workflow SPECIES_ID {
         ch_sylph_profile = sylph_profile_out.profile_out
         ch_multiqc_files = ch_multiqc_files.mix(sylph_profile_out.profile_out)
 
-        def species_check_out = SPECIES_CHECK(sylph_profile_out.profile_out, ch_species_id_manifest)
+        def ch_project_taxids = params.project_expected_taxids ? file(params.project_expected_taxids, checkIfExists: true) : []
+        def species_check_out = SPECIES_CHECK(sylph_profile_out.profile_out, ch_species_id_manifest, ch_project_taxids)
         ch_species_check = species_check_out.result
 
         // .ifEmpty([]): collectFile emits nothing at all (not even the seed
@@ -49,7 +50,7 @@ workflow SPECIES_ID {
                 name: 'species_check_summary.tsv',
                 storeDir: "${outdir}/species_id",
                 sort: { file -> file.name },   // by file name (= sample), not full work-dir path, so row order is stable across runs
-                seed: "sample\tplatform\tverdict\texpected_taxid\taccession\tspecies_taxid\tspecies_name\tadjusted_ani\ttaxonomic_abundance\tn_hits\n"
+                seed: "sample\tplatform\tverdict\texpected_taxid\taccession\tspecies_taxid\tspecies_name\tadjusted_ani\ttaxonomic_abundance\tn_hits\texpected_source\tmatched_taxid\n"
             )
             .ifEmpty([])
     }

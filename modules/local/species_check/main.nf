@@ -9,7 +9,8 @@ process SPECIES_CHECK {
 
     input:
     tuple val(meta), path(profile)
-    path  manifest, stageAs: 'manifest.csv?'   // accession,...,taxid,species_taxid,species_name - required when meta.expected_taxid is set
+    path  manifest, stageAs: 'manifest.csv?'   // accession,...,taxid,species_taxid,species_name[,lineage_taxids] - required when there are expected taxa
+    path  project_taxids, stageAs: 'project_expected_taxids.csv?'   // optional: project_id,expected_taxid (one-to-many)
 
     output:
     tuple val(meta), path("*.species_check.tsv"), emit: result
@@ -21,12 +22,16 @@ process SPECIES_CHECK {
     def prefix = task.ext.prefix ?: "${meta.id}"
     def manifest_arg = manifest ? "--manifest ${manifest}" : ''
     def expected_arg = meta.expected_taxid ? "--expected-taxid ${meta.expected_taxid}" : ''
+    // The script applies the precedence: the sample's own expected_taxid,
+    // else its project's taxids from project_expected_taxids.csv.
+    def project_arg  = project_taxids && meta.project_id ? "--project-id '${meta.project_id}' --project-expected-taxids ${project_taxids}" : ''
     """
     check_species.py \\
         --sample ${meta.id} \\
         --platform ${meta.platform} \\
         --sample-type ${meta.sample_type} \\
         ${expected_arg} \\
+        ${project_arg} \\
         ${manifest_arg} \\
         ${profile} > ${prefix}.species_check.tsv
     """
@@ -34,6 +39,6 @@ process SPECIES_CHECK {
     stub:
     def prefix = task.ext.prefix ?: "${meta.id}"
     """
-    printf '%s\\t%s\\tstub\\tNA\\tNA\\tNA\\tNA\\tNA\\tNA\\t0\\n' "${meta.id}" "${meta.platform}" > ${prefix}.species_check.tsv
+    printf '%s\\t%s\\tstub\\tNA\\tNA\\tNA\\tNA\\tNA\\tNA\\t0\\tNA\\tNA\\n' "${meta.id}" "${meta.platform}" > ${prefix}.species_check.tsv
     """
 }

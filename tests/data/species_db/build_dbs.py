@@ -45,7 +45,7 @@ SYLPH_DIR = HERE / "sylph"
 
 MANIFEST_FIELDS = [
     "accession", "organism", "strain", "category", "source_nucleotide_accession",
-    "taxid", "species_taxid", "species_name",
+    "taxid", "species_taxid", "species_name", "lineage_taxids",
 ]
 
 
