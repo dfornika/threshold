@@ -45,7 +45,7 @@
                 },
                 "multiqc_group_by": {
                     "type": "string",
-                    "default": "project_id,tags",
+                    "default": "project_id",
                     "pattern": "^((project_id|tags|sample_type|platform)(,(project_id|tags|sample_type|platform))*)?$",
                     "description": "Also write a MultiQC report and sample_summary.csv per value of these samplesheet fields, under groups/<field>/<value>/.",
                     "help_text": "Comma-separated list of project_id, tags, sample_type and/or platform. Each tag in a sample's colon-separated tags is its own group. Samples with no value for a field are in no group for it. The all-samples report and sample_summary.csv are always written. Set to an empty string to turn per-group reports off.",
@@ -274,6 +274,13 @@
                     "description": "Optional CSV of project_id,sylph_db (one-to-many): the sylph databases each project's samples are screened against, only these, unless the reserved value 'default' is listed.",
                     "help_text": "A project listed in this file is screened ONLY against the databases listed for it, not --sylph_db; use the reserved value 'default' as a sylph_db to include --sylph_db as well. Samples whose project isn't listed (or that have none) use --sylph_db. All of a sample's databases are profiled in one sylph call, so the result is a single combined profile. Relative paths are resolved from the directory you launch the pipeline in.",
                     "fa_icon": "fas fa-database"
+                },
+		"kraken2_db": {
+                    "type": "string",
+                    "format": "path",
+                    "exists": true,
+                    "description": "Default kraken2 db.",
+                    "fa_icon": "fas fa-dna"
                 },
                 "project_expected_taxids": {
                     "type": "string",

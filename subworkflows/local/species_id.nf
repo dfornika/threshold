@@ -16,6 +16,7 @@
 //
 
 include { SYLPH_PROFILE } from '../../modules/nf-core/sylph/profile/main'
+include { KRAKEN2_KRAKEN2 } from '../../modules/nf-core/kraken2/kraken2/main'
 include { SPECIES_CHECK } from '../../modules/local/species_check/main'
 include { samplesheetToList } from 'plugin/nf-schema'
 include { parseProjectSylphDbs } from './sylph_dbs'
@@ -36,6 +37,8 @@ workflow SPECIES_ID {
     def ch_sylph_profile = channel.empty()
 
     if (!params.skip_species_id) {
+
+	
         // Each sample's databases: its project's (--project_sylph_dbs) or the
         // default (--sylph_db); the startup checks guarantee at least one.
         def project_db_rows = params.project_sylph_dbs ? samplesheetToList(params.project_sylph_dbs, "${projectDir}/assets/schema_project_sylph_dbs.json") : []
@@ -60,6 +63,8 @@ workflow SPECIES_ID {
                 reads:     tuple(meta, reads)
                 databases: dbs
             }
+	def ch_kraken2_db = file(params.kraken2_db, checkIfExists: true)
+	def kraken2_kraken2_out = KRAKEN2_KRAKEN2(ch_to_profile.reads, ch_kraken2_db, false, false)
 
         def sylph_profile_out = SYLPH_PROFILE(ch_to_profile.reads, ch_to_profile.databases)
         ch_sylph_profile = sylph_profile_out.profile_out
