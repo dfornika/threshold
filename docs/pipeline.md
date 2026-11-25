@@ -39,10 +39,13 @@ caveats.
 6. **Assembly QC** — [`QUAST`](https://github.com/ablab/quast) for contiguity
    (reference-based metrics when the sample has a reference), plus
    [`CheckM2`](https://github.com/chklovski/CheckM2) for completeness /
-   contamination when a `--checkm2_db` is provided.
+   contamination when a `--checkm2_db` is provided, and
+   [`BUSCO`](https://busco.ezlab.org) for single-copy ortholog completeness when
+   a `--busco_db` is provided. BUSCO uses the most specific lineage for the
+   sample (see [usage](usage.md#busco-lineages)).
 7. **Species-specific QC thresholds** — [`speccheck`](https://gitlab.com/cgps/tools/speccheck)
    checks each assembled isolate's QUAST, sylph, fastp and (with
-   `--checkm2_db`) CheckM2 results against criteria for its species, including
+   `--checkm2_db`) CheckM2 and (with `--busco_db`) BUSCO results against criteria for its species, including
    the [QualiBact](https://qualibact.org) thresholds, giving a PASS / WARN /
    FAIL with reasons. Runs only when the species check agrees with the
    samplesheet (or there was no expected taxid). Toggle with `--skip_speccheck`;

@@ -8,7 +8,7 @@ process ASSEMBLY_SUMMARY {
         'quay.io/biocontainers/python:3.12' }"
 
     input:
-    tuple val(meta), path(quast), path(checkm2)   // checkm2 optional (staged as '' when CheckM2 did not run)
+    tuple val(meta), path(quast), path(checkm2), path(busco)   // checkm2 / busco optional (staged as '' when that tool did not run)
 
     output:
     tuple val(meta), path("*.assembly_summary.tsv"), emit: summary
@@ -19,18 +19,20 @@ process ASSEMBLY_SUMMARY {
     script:
     def prefix = task.ext.prefix ?: "${meta.id}"
     def checkm2_arg = checkm2 ? "--checkm2 ${checkm2}" : ''
+    def busco_arg   = busco   ? "--busco ${busco}"     : ''
     """
     parse_assembly_qc.py \\
         --sample ${meta.id} \\
         --platform ${meta.platform} \\
         --assembler ${meta.assembler} \\
         --quast ${quast} \\
-        ${checkm2_arg} > ${prefix}.assembly_summary.tsv
+        ${checkm2_arg} \\
+        ${busco_arg} > ${prefix}.assembly_summary.tsv
     """
 
     stub:
     def prefix = task.ext.prefix ?: "${meta.id}"
     """
-    printf '%s\\t%s\\t%s\\tNA\\tNA\\tNA\\tNA\\tNA\\tNA\\tNA\\tNA\\tNA\\n' "${meta.id}" "${meta.platform}" "${meta.assembler}" > ${prefix}.assembly_summary.tsv
+    printf '%s\\t%s\\t%s\\tNA\\tNA\\tNA\\tNA\\tNA\\tNA\\tNA\\tNA\\tNA\\tNA\\tNA\\tNA\\tNA\\n' "${meta.id}" "${meta.platform}" "${meta.assembler}" > ${prefix}.assembly_summary.tsv
     """
 }

@@ -358,6 +358,18 @@
                     "description": "CheckM2 DIAMOND database (assembly completeness + contamination). Optional external download - when unset, those columns are reported as NA and only QUAST contiguity metrics are produced.",
                     "fa_icon": "fas fa-database"
                 },
+                "busco_db": {
+                    "type": "string",
+                    "format": "path",
+                    "description": "Directory of pre-downloaded BUSCO lineage datasets (it holds a lineages/ subdirectory). Optional - BUSCO only runs when this is set. Prefetch with busco --download prokaryota.",
+                    "fa_icon": "fas fa-database"
+                },
+                "busco_default_lineage": {
+                    "type": "string",
+                    "default": "bacteria_odb12",
+                    "description": "BUSCO lineage for samples with no busco_lineage in the samplesheet and a species (or genus) with no row in assets/busco_lineages.tsv.",
+                    "fa_icon": "fas fa-dna"
+                },
                 "skip_speccheck": {
                     "type": "boolean",
                     "description": "Skip species-specific QC thresholds (speccheck, including QualiBact thresholds) for assembled isolates.",

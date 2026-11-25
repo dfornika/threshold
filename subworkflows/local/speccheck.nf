@@ -5,11 +5,14 @@
 //
 // speccheck doesn't run any tools: it reads QC outputs this pipeline already
 // produces - QUAST report.tsv, the sylph profile, fastp JSON (Illumina) and,
-// when --checkm2_db is set, the CheckM2 quality report - and checks them
+// when --checkm2_db / --busco_db are set, the CheckM2 quality report and the
+// BUSCO short summary - and checks them
 // against criteria for the sample's species and assembly type (`short` for
 // Illumina, `long` for Nanopore). Metrics from a tool that didn't run are
 // simply not checked (e.g. CheckM2 completeness/contamination without
-// --checkm2_db).
+// --checkm2_db). speccheck's default criteria include BUSCO thresholds for
+// every species (Complete and Missing), so with --busco_db they count towards
+// the verdict.
 //
 // Which samples: those with a QUAST report, i.e. isolates with an assembly -
 // the thresholds are assembly thresholds, and an isolate whose assembly
@@ -35,6 +38,7 @@ workflow SPECCHECK {
     ch_species_check    // tuple(meta, species_check.tsv) - from SPECIES_ID
     ch_quast_report     // tuple(meta, report.tsv) - from ASSEMBLY_ANALYSIS
     ch_checkm2_report   // tuple(meta, quality_report.tsv) - from ASSEMBLY_ANALYSIS (only with --checkm2_db)
+    ch_busco_report     // tuple(meta, short_summary.*.txt) - from ASSEMBLY_ANALYSIS (only with --busco_db)
     ch_sylph_profile    // tuple(meta, profile.tsv) - from SPECIES_ID
     ch_fastp_json       // tuple(meta, json) - from READ_QC_AND_DEHOSTING (Illumina only)
 
@@ -54,25 +58,26 @@ workflow SPECCHECK {
         // Anchor on the QUAST report (one per assembled isolate) and join
         // everything else by meta.id; remainder: true because the other
         // inputs are optional (no sylph if species ID was skipped, no fastp
-        // JSON for Nanopore, no CheckM2 without --checkm2_db).
+        // JSON for Nanopore, no CheckM2 / BUSCO without their databases).
         def ch_candidates = ch_quast_report
             .map { meta, tsv -> tuple(meta.id, meta, tsv) }
             .join(ch_organism, remainder: true)
             .join(ch_sylph_profile.map { meta, f -> tuple(meta.id, f) }, remainder: true)
             .join(ch_fastp_json.map { meta, f -> tuple(meta.id, f) }, remainder: true)
             .join(ch_checkm2_report.map { meta, f -> tuple(meta.id, f) }, remainder: true)
+            .join(ch_busco_report.map { meta, f -> tuple(meta.id, f) }, remainder: true)
             .filter { entry -> entry[1] != null }   // assembled samples only
-            .branch { _id, _meta, _quast, organism, _sylph, _fastp, _checkm2 ->
+            .branch { _id, _meta, _quast, organism, _sylph, _fastp, _checkm2, _busco ->
                 ready:   organism?.name
                 skipped: true
             }
 
-        ch_candidates.skipped.subscribe { id, _meta, _quast, organism, _sylph, _fastp, _checkm2 ->
+        ch_candidates.skipped.subscribe { id, _meta, _quast, organism, _sylph, _fastp, _checkm2, _busco ->
             log.warn("speccheck: skipping ${id} - species check verdict '${organism?.verdict ?: 'none'}', so its species isn't settled enough to pick thresholds")
         }
 
-        def ch_collect_in = ch_candidates.ready.map { _id, meta, quast, organism, sylph, fastp, checkm2 ->
-            tuple(meta, [quast, sylph, fastp, checkm2].findAll { f -> f }, organism.name)
+        def ch_collect_in = ch_candidates.ready.map { _id, meta, quast, organism, sylph, fastp, checkm2, busco ->
+            tuple(meta, [quast, sylph, fastp, checkm2, busco].findAll { f -> f }, organism.name)
         }
 
         def ch_criteria = params.speccheck_criteria ? channel.value(file(params.speccheck_criteria, checkIfExists: true)) : channel.value([])
