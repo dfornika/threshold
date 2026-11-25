@@ -78,7 +78,15 @@ jobs:
 
       - name: Build plugin
         working-directory: plugins/nf-bccdc-provenance
-        run: ./gradlew --no-daemon assemble
+        # Retry: Maven Central occasionally answers shared runner IPs with
+        # 429 Too Many Requests when the Gradle cache is cold.
+        run: |
+          for attempt in 1 2 3; do
+            ./gradlew --no-daemon assemble && exit 0
+            echo "Build attempt ${attempt} failed" >&2
+            sleep $((attempt * 30))
+          done
+          exit 1
 
       - name: Upload plugin
         uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7.0.2
