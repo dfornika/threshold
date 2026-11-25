@@ -2,6 +2,8 @@
 
 The BCCDC-PHL/threshold documentation is split into the following pages:
 
+- [Pipeline steps](pipeline.md)
+  - What each stage of the pipeline does and the parameters that control it.
 - [Usage](usage.md)
   - An overview of how the pipeline works, how to run it and a description of all of the different command-line flags.
 - [Output](output.md)

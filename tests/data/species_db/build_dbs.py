@@ -20,7 +20,8 @@ Requires (not installed by this script):
 
 Downloads each assembly's whole-genome FASTA (all contigs/plasmids in one file)
 into a gitignored genomes_src/ scratch dir (not committed - see README.md to
-regenerate), then builds the committed DB artifact: sylph/species_mini.syldb.
+regenerate), then builds the committed DB artifacts: sylph/species_mini.syldb
+(all genomes) and sylph/viral_mini.syldb (the two viruses only).
 sylph sketches a whole file as one entry by default, so the sketch-building
 function below is accession-format-agnostic.
 
@@ -103,18 +104,23 @@ def download_genomes(client, rows):
     return paths
 
 
+# The two viruses in the panel also go into their own database, so tests can
+# screen a project against a database of its own (see --project_sylph_dbs).
+VIRAL_ACCESSIONS = {"GCF_009858895.2", "GCF_000858645.1"}
+
+
 def build_sylph(genome_paths):
     SYLPH_DIR.mkdir(exist_ok=True)
-    subprocess.run(
-        [
-            "sylph", "sketch",
-            "-g", *[str(p) for p in genome_paths],
-            "-o", "species_mini",
-        ],
-        check=True,
-        cwd=SYLPH_DIR,
-    )
-    print(f"  wrote {SYLPH_DIR}/species_mini.syldb")
+    for name, paths in (
+        ("species_mini", genome_paths),
+        ("viral_mini", [p for p in genome_paths if p.name.split(".fasta")[0] in VIRAL_ACCESSIONS]),
+    ):
+        subprocess.run(
+            ["sylph", "sketch", "-g", *[str(p) for p in paths], "-o", name],
+            check=True,
+            cwd=SYLPH_DIR,
+        )
+        print(f"  wrote {SYLPH_DIR}/{name}.syldb")
 
 
 def main():

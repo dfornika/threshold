@@ -1,0 +1,23 @@
+{
+    "$schema": "https://json-schema.org/draft/2020-12/schema",
+    "$id": "https://raw.githubusercontent.com/BCCDC-PHL/threshold/main/assets/schema_project_kraken2_dbs.json",
+    "title": "BCCDC-PHL/threshold pipeline - params.project_kraken2_dbs schema",
+    "description": "Kraken2 databases per project: one row per project_id + kraken2_db pair; a project may appear on several rows. The reserved kraken2_db value 'default' means the --kraken2_db database.",
+    "type": "array",
+    "items": {
+        "type": "object",
+        "properties": {
+            "project_id": {
+                "type": "string",
+                "pattern": "^[A-Za-z0-9_.-]+$",
+                "errorMessage": "project_id may only contain letters, numbers, underscores, hyphens and dots (as in the samplesheet)"
+            },
+            "kraken2_db": {
+                "type": "string",
+                "pattern": "^\\S+$",
+                "errorMessage": "kraken2_db must be a path to a kraken2 database directory (no spaces), or the word 'default' for the --kraken2_db database"
+            }
+        },
+        "required": ["project_id", "kraken2_db"]
+    }
+}

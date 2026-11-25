@@ -9,6 +9,8 @@ species_db/
   manifest.csv       accession, organism, strain, category, taxonomy for all 10 genomes
   build_dbs.py       regenerates the database below from manifest.csv
   sylph/species_mini.syldb
+  sylph/viral_mini.syldb   the two viruses only (a project with its own sylph database)
+  kraken2/                 tiny SARS-CoV-2 kraken2 databases - see kraken2/README.md
   genomes_src/       *not committed* (gitignored) - downloaded genome FASTAs
 ```
 

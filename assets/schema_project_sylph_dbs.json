@@ -1,0 +1,23 @@
+{
+    "$schema": "https://json-schema.org/draft/2020-12/schema",
+    "$id": "https://raw.githubusercontent.com/BCCDC-PHL/threshold/main/assets/schema_project_sylph_dbs.json",
+    "title": "BCCDC-PHL/threshold pipeline - params.project_sylph_dbs schema",
+    "description": "Sylph databases per project: one row per project_id + sylph_db pair; a project may appear on several rows. The reserved sylph_db value 'default' means the --sylph_db database.",
+    "type": "array",
+    "items": {
+        "type": "object",
+        "properties": {
+            "project_id": {
+                "type": "string",
+                "pattern": "^[A-Za-z0-9_.-]+$",
+                "errorMessage": "project_id may only contain letters, numbers, underscores, hyphens and dots (as in the samplesheet)"
+            },
+            "sylph_db": {
+                "type": "string",
+                "pattern": "^\\S+$",
+                "errorMessage": "sylph_db must be a path to a .syldb file (no spaces), or the word 'default' for the --sylph_db database"
+            }
+        },
+        "required": ["project_id", "sylph_db"]
+    }
+}

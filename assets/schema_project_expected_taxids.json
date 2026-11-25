@@ -16,6 +16,16 @@
                 "type": "integer",
                 "minimum": 1,
                 "errorMessage": "expected_taxid must be an NCBI taxid (a positive integer, e.g. 543 for Enterobacteriaceae)"
+            },
+            "taxon_name": {
+                "type": "string",
+                "pattern": "^[A-Za-z0-9_. -]+$",
+                "errorMessage": "taxon_name may only contain letters, numbers, underscores, hyphens, dots and spaces."
+            },
+            "taxon_rank": {
+                "type": "string",
+                "enum": ["D", "K", "P", "C", "O", "F", "G", "S", "S1"],
+                "errorMessage": "Must be one of: 'D' (Domain), 'K' (Kingdom), 'P' (Phylum), 'C' (Class), 'O' (Order), 'F' (Family), 'G' (Genus), 'S' (Species), 'S1' (Subspecies)"
             }
         },
         "required": ["project_id", "expected_taxid"]
