@@ -1,0 +1,224 @@
+nextflow_function {
+
+    name "Per-project database resolution (sylph, kraken2)"
+    script "../subworkflows/local/project_dbs.nf"
+    tag "functions"
+
+    test("parseProjectDbs groups by project, keeps order, drops duplicates") {
+
+        function "parseProjectDbs"
+
+        when {
+            function {
+                """
+                input[0] = [['a', '/d/1.syldb'], ['a', '/d/2.syldb'], ['b', '/d/1.syldb'], ['a', '/d/1.syldb']]
+                """
+            }
+        }
+
+        then {
+            assert function.success
+            assert function.result == [a: ['/d/1.syldb', '/d/2.syldb'], b: ['/d/1.syldb']]
+        }
+    }
+
+    test("resolveProjectDbs: a listed project uses only its own databases") {
+
+        function "resolveProjectDbs"
+
+        when {
+            function {
+                """
+                input[0] = [id: 'S1', project_id: 'virology']
+                input[1] = [virology: ['/d/viral.syldb']]
+                input[2] = '/d/default.syldb'
+                """
+            }
+        }
+
+        then {
+            assert function.success
+            assert function.result == ['/d/viral.syldb']
+        }
+    }
+
+    test("resolveProjectDbs: the 'default' token adds the default database, in place") {
+
+        function "resolveProjectDbs"
+
+        when {
+            function {
+                """
+                input[0] = [id: 'S1', project_id: 'fungi']
+                input[1] = [fungi: ['/d/fungi.syldb', 'default', '/d/fungi.syldb']]
+                input[2] = '/d/default.syldb'
+                """
+            }
+        }
+
+        then {
+            assert function.success
+            assert function.result == ['/d/fungi.syldb', '/d/default.syldb']
+        }
+    }
+
+    test("resolveProjectDbs: unlisted or project-less samples use the default; none if there is no default") {
+
+        function "resolveProjectDbs"
+
+        when {
+            function {
+                """
+                input[0] = [id: 'S1', project_id: 'other']
+                input[1] = [virology: ['/d/viral.syldb']]
+                input[2] = '/d/default.syldb'
+                """
+            }
+        }
+
+        then {
+            assert function.success
+            assert function.result == ['/d/default.syldb']
+        }
+    }
+
+    test("resolveProjectDbs: no database at all gives an empty list") {
+
+        function "resolveProjectDbs"
+
+        when {
+            function {
+                """
+                input[0] = [id: 'S1']
+                input[1] = [:]
+                input[2] = null
+                """
+            }
+        }
+
+        then {
+            assert function.success
+            assert function.result == []
+        }
+    }
+
+    test("projectDbProblems: a valid setup has no errors or warnings") {
+
+        function "projectDbProblems"
+
+        when {
+            function {
+                """
+                input[0] = [[id: 'S1', project_id: 'p', sample_type: 'isolate'], [id: 'S2', sample_type: 'isolate']]
+                input[1] = [p: ['${projectDir}/nf-test.config', 'default']]
+                input[2] = '${projectDir}/nextflow.config'
+                input[3] = 'sylph'
+                input[4] = true
+                """
+            }
+        }
+
+        then {
+            assert function.success
+            assert function.result.errors == []
+            assert function.result.warnings == []
+        }
+    }
+
+    test("projectDbProblems: reports missing databases, a 'default' with no default, and an unused project") {
+
+        function "projectDbProblems"
+
+        when {
+            function {
+                """
+                input[0] = [[id: 'S1', project_id: 'p', sample_type: 'isolate']]
+                input[1] = [p: ['/no/such/db.syldb', 'default'], ghost: ['${projectDir}/nf-test.config']]
+                input[2] = null
+                input[3] = 'sylph'
+                input[4] = true
+                """
+            }
+        }
+
+        then {
+            assert function.success
+            assert function.result.errors.any { e -> e.contains("sylph database '/no/such/db.syldb' does not exist") }
+            assert function.result.errors.any { e -> e.contains("lists the database 'default' in --project_sylph_dbs, but --sylph_db was not set") }
+            assert function.result.warnings.size() == 1
+            assert function.result.warnings[0].contains('ghost')
+        }
+    }
+
+    test("projectDbProblems: a required database is missing for a screened sample, but not for amplicon_16s") {
+
+        function "projectDbProblems"
+
+        when {
+            function {
+                """
+                input[0] = [[id: 'ISO1', sample_type: 'isolate'], [id: 'SIXTEEN_S', sample_type: 'amplicon_16s']]
+                input[1] = [:]
+                input[2] = null
+                input[3] = 'sylph'
+                input[4] = true
+                """
+            }
+        }
+
+        then {
+            assert function.success
+            assert function.result.errors.size() == 1
+            assert function.result.errors[0].contains('ISO1')
+            assert !function.result.errors[0].contains('SIXTEEN_S')
+            assert function.result.errors[0].contains('--sylph_db')
+        }
+    }
+
+    test("projectDbProblems: databases that would share a file name are an error") {
+
+        function "projectDbProblems"
+
+        when {
+            function {
+                """
+                input[0] = [[id: 'S1', project_id: 'p', sample_type: 'isolate']]
+                input[1] = [p: ['${projectDir}/nf-test.config', '${projectDir}/tests/nf-test.config']]
+                input[2] = null
+                input[3] = 'sylph'
+                input[4] = true
+                """
+            }
+        }
+
+        then {
+            assert function.success
+            assert function.result.errors.any { e -> e.contains('more than one named nf-test.config') }
+        }
+    }
+
+    test("projectDbProblems: kraken2 is optional, and its databases must be kraken2 directories") {
+
+        function "projectDbProblems"
+
+        when {
+            function {
+                """
+                input[0] = [[id: 'S1', project_id: 'p', sample_type: 'isolate'], [id: 'S2', sample_type: 'isolate']]
+                input[1] = [p: ['${projectDir}/tests/data/species_db/kraken2/sarscov2_mini', '${projectDir}/tests']]
+                input[2] = null
+                input[3] = 'kraken2'
+                input[4] = false
+                """
+            }
+        }
+
+        then {
+            assert function.success
+            // S2 has no kraken2 database: fine, it just isn't classified with kraken2
+            assert function.result.errors.size() == 1
+            assert function.result.errors[0].contains('is not a kraken2 database directory')
+            assert function.result.errors[0].contains('tests')
+        }
+    }
+}

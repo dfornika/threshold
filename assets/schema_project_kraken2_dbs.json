@@ -15,7 +15,7 @@
             "kraken2_db": {
                 "type": "string",
                 "pattern": "^\\S+$",
-                "errorMessage": "sylph_db must be a path to a kraken2 db dir (no spaces), or the word 'default' for the --kraken2_db database"
+                "errorMessage": "kraken2_db must be a path to a kraken2 database directory (no spaces), or the word 'default' for the --kraken2_db database"
             }
         },
         "required": ["project_id", "kraken2_db"]

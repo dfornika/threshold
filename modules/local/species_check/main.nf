@@ -8,7 +8,7 @@ process SPECIES_CHECK {
         'quay.io/biocontainers/python:3.12' }"
 
     input:
-    tuple val(meta), path(profile)
+    tuple val(meta), path(profile), path(kraken2_reports, stageAs: 'kraken2/*')   // kraken2 reports (one per kraken2 database); [] when the sample has none
     path  manifest, stageAs: 'manifest.csv?'   // accession,...,taxid,species_taxid,species_name[,lineage_taxids] - required when there are expected taxa
     path  project_taxids, stageAs: 'project_expected_taxids.csv?'   // optional: project_id,expected_taxid (one-to-many)
 
@@ -19,7 +19,9 @@ process SPECIES_CHECK {
     task.ext.when == null || task.ext.when
 
     script:
+    def args = task.ext.args ?: ''
     def prefix = task.ext.prefix ?: "${meta.id}"
+    def kraken2_args = (kraken2_reports ? (kraken2_reports instanceof List ? kraken2_reports : [kraken2_reports]) : []).collect { report -> "--kraken2-report ${report}" }.join(' ')
     def manifest_arg = manifest ? "--manifest ${manifest}" : ''
     def expected_arg = meta.expected_taxid ? "--expected-taxid ${meta.expected_taxid}" : ''
     // The script applies the precedence: the sample's own expected_taxid,
@@ -34,6 +36,8 @@ process SPECIES_CHECK {
         ${expected_arg} \\
         ${project_arg} \\
         ${dbs_arg} \\
+        ${kraken2_args} \\
+        ${args} \\
         ${manifest_arg} \\
         ${profile} > ${prefix}.species_check.tsv
     """
@@ -41,6 +45,6 @@ process SPECIES_CHECK {
     stub:
     def prefix = task.ext.prefix ?: "${meta.id}"
     """
-    printf '%s\\t%s\\tstub\\tNA\\tNA\\tNA\\tNA\\tNA\\tNA\\t0\\tNA\\tNA\\tNA\\tNA\\n' "${meta.id}" "${meta.platform}" > ${prefix}.species_check.tsv
+    printf '%s\\t%s\\tstub\\tNA\\tNA\\tNA\\tNA\\tNA\\tNA\\t0\\tNA\\tNA\\tNA\\tNA\\tNA\\tNA\\tNA\\tNA\\tNA\\tNA\\tNA\\tNA\\tNA\\n' "${meta.id}" "${meta.platform}" > ${prefix}.species_check.tsv
     """
 }

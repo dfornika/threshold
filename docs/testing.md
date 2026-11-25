@@ -193,6 +193,45 @@ species-level (`3418604`) taxids respectively, so both match paths are
 covered. An `isolate` sample deliberately labelled with the wrong taxid comes
 back `mismatch`; a hit missing from the manifest comes back `unresolved`.
 
+#### kraken2 and databases per project
+
+kraken2 is optional and runs once per sample and database (see `docs/usage.md`,
+"Species-ID databases"). The `test` profile has a default kraken2 database
+(`tests/data/species_db/kraken2/sarscov2_mini`, nf-core's tiny SARS-CoV-2 one)
+plus `tests/data/project_{sylph,kraken2}_dbs.csv`: `project_a` gets the default
+**and** a second database (the `default` token), `project_b` only the second.
+So the pipeline snapshot covers two kraken2 runs for one sample and one for
+the other, a sample with two sylph databases (`species_mini` + `viral_mini`)
+and one with only `viral_mini`, and the kraken2 reports in the all-samples and
+per-group MultiQC reports. The synthetic reads classify to nothing, so the
+verdicts there are `no_hit`/`not_checked`; the real ones come from `test_full`'s
+reads.
+
+`tests/project_dbs.nf.test` unit-tests the database resolution and startup
+checks (no containers): the project-overrides-default and `default`-token
+rules, missing databases, no database for a sample (not for `amplicon_16s`),
+file-name clashes, and kraken2's optionality and `hash.k2d` check.
+
+Checked with real reads and the tiny SARS-CoV-2 kraken2 database
+(`test_full` profile): a SARS-CoV-2 Illumina sample matched in both
+classifiers (kraken2: 100% of the classified reads in the expected taxon); the
+bacterial samples came back `no_hit` from kraken2 (nothing in the database
+matches them) and `match` from sylph; sylph's classified fraction was 65% for
+one *E. coli* sample (with `--estimate-unknown`, the share of reads sylph
+couldn't place); and a Nanopore sample given the species taxid from kraken2's
+older taxonomy (694009) matched in kraken2 but was a `mismatch` in sylph,
+whose manifest lineage uses current NCBI taxonomy (the species is 3418604
+there) - an expected taxid must exist in the taxonomy of the classifier
+being checked. The scoring in `bin/check_species.py` was also exercised on
+hand-built reports: family- and species-level matches, nested expected taxa
+counted once, a low classified fraction, metagenomic samples, and two
+databases (the best verdict wins).
+
+On a mixed *E. coli* + SARS-CoV-2 read set, sylph's taxonomic abundance put
+SARS-CoV-2 at 98.5% although it held 30% of the reads (E. coli the other 70%),
+because taxonomic abundance counts genome copies; ranking by sequence
+abundance calls the sample *E. coli*, as it should.
+
 ### Reference genome
 
 `REFERENCE_GENOME` (`subworkflows/local/reference_genome.nf`) resolves one

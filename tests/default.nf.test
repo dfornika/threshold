@@ -8,19 +8,24 @@ nextflow_pipeline {
 
         when {
             // nf-test launches the pipeline from its own per-test directory,
-            // so the in-repo samplesheet's paths (relative to the repo root)
-            // wouldn't resolve. Write a copy with absolute paths instead -
-            // next to (not inside) outdir, so it isn't part of the snapshot.
-            def samplesheet = new File(new File("${outputDir}").parentFile, 'samplesheet.abs.csv')
-            samplesheet.text = new File("${baseDir}/tests/data/samplesheet.csv").readLines().withIndex().collect { line, i ->
-                i == 0 ? line : line.split(',', -1).collect { field ->
-                    (field ==~ /.+\.(fastq|fq|fasta|fa|fna)(\.gz)?/ && !field.startsWith('/')) ? "${baseDir}/${field}" : field
-                }.join(',')
-            }.join('\n') + '\n'
+            // so paths in the in-repo CSVs (relative to the repo root) wouldn't
+            // resolve. Write copies with absolute paths instead - next to
+            // (not inside) outdir, so they aren't part of the snapshot.
+            def absolutize = { String source, String name ->
+                def copy = new File(new File("${outputDir}").parentFile, name)
+                copy.text = new File("${baseDir}/${source}").readLines().withIndex().collect { line, i ->
+                    i == 0 ? line : line.split(',', -1).collect { field ->
+                        field.startsWith('tests/') ? "${baseDir}/${field}" : field
+                    }.join(',')
+                }.join('\n') + '\n'
+                return copy.toString()
+            }
 
             params {
-                input  = samplesheet.toString()
-                outdir = "$outputDir"
+                input               = absolutize('tests/data/samplesheet.csv', 'samplesheet.abs.csv')
+                project_sylph_dbs   = absolutize('tests/data/project_sylph_dbs.csv', 'project_sylph_dbs.abs.csv')
+                project_kraken2_dbs = absolutize('tests/data/project_kraken2_dbs.csv', 'project_kraken2_dbs.abs.csv')
+                outdir              = "$outputDir"
             }
         }
 

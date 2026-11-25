@@ -275,12 +275,49 @@
                     "help_text": "A project listed in this file is screened ONLY against the databases listed for it, not --sylph_db; use the reserved value 'default' as a sylph_db to include --sylph_db as well. Samples whose project isn't listed (or that have none) use --sylph_db. All of a sample's databases are profiled in one sylph call, so the result is a single combined profile. Relative paths are resolved from the directory you launch the pipeline in.",
                     "fa_icon": "fas fa-database"
                 },
-		"kraken2_db": {
+                "kraken2_db": {
                     "type": "string",
                     "format": "path",
                     "exists": true,
-                    "description": "Default kraken2 db.",
+                    "description": "Default kraken2 database directory (the one holding hash.k2d). Optional: kraken2 only runs for samples that have a kraken2 database, this one or their project's in --project_kraken2_dbs.",
                     "fa_icon": "fas fa-dna"
+                },
+                "project_kraken2_dbs": {
+                    "type": "string",
+                    "format": "file-path",
+                    "exists": true,
+                    "mimetype": "text/csv",
+                    "schema": "assets/schema_project_kraken2_dbs.json",
+                    "description": "Optional CSV of project_id,kraken2_db (one-to-many): the kraken2 databases each project's samples are screened against, only these unless the reserved value 'default' is listed.",
+                    "help_text": "A project listed in this file is screened ONLY against the databases listed for it, not --kraken2_db; use the reserved value 'default' as a kraken2_db to include --kraken2_db as well. Samples whose project isn't listed (or that have none) use --kraken2_db. Unlike sylph, kraken2 runs once per database, and the species check keeps the best verdict (a viral sample is expected to be unclassified in a bacterial database). Relative paths are resolved from the directory you launch the pipeline in.",
+                    "fa_icon": "fas fa-database"
+                },
+                "kraken2_min_expected_pct": {
+                    "type": "number",
+                    "default": 70,
+                    "minimum": 0,
+                    "maximum": 100,
+                    "description": "kraken2 species check: minimum % of the classified reads that must be in the expected taxa for a match.",
+                    "help_text": "Applies to samples that aren't metagenomic. The expected taxa can be at any rank (e.g. a family); reads in nested expected taxa are counted once.",
+                    "fa_icon": "fas fa-percent"
+                },
+                "kraken2_min_classified_pct": {
+                    "type": "number",
+                    "default": 50,
+                    "minimum": 0,
+                    "maximum": 100,
+                    "description": "kraken2 species check: below this % of all reads classified, no match/mismatch call is made (verdict low_classified).",
+                    "help_text": "If most reads are unclassified, the classified ones say little about the sample, so the check reports low_classified rather than a match or mismatch. Not applied to metagenomic samples, where much is expected to be unknown.",
+                    "fa_icon": "fas fa-percent"
+                },
+                "kraken2_min_metagenomic_pct": {
+                    "type": "number",
+                    "default": 1,
+                    "minimum": 0,
+                    "maximum": 100,
+                    "description": "kraken2 species check, metagenomic samples: minimum % of the classified reads that must be in the expected taxa.",
+                    "help_text": "For metagenomic samples an expected taxon only needs to be present, not dominant.",
+                    "fa_icon": "fas fa-percent"
                 },
                 "project_expected_taxids": {
                     "type": "string",

@@ -31,13 +31,16 @@ status and known caveats.
    The dehosted reads are only published on request (`--publish_dehosted_reads`,
    or per sample in the samplesheet); reads from before dehosting never are.
 3. **Species ID + check** — [`sylph`](https://github.com/bluenote-1577/sylph)
-   against a reference-genome database (`--sylph_db`); the top hit is compared
-   with the samplesheet's `expected_taxid`, or the sample's project taxids from
+   against a reference-genome database (`--sylph_db`) and, optionally,
+   [`kraken2`](https://github.com/DerrickWood/kraken2) (`--kraken2_db`); both
+   can take different databases per project (`--project_sylph_dbs`,
+   `--project_kraken2_dbs`). The results are compared with the samplesheet's
+   `expected_taxid`, or the sample's project taxids from
    `--project_expected_taxids` (NCBI taxids, matched at any rank - e.g. a
-   family - via `--species_id_manifest`) and reported as `match` / `mismatch` /
-   `unresolved` / `no_hit` / `not_checked`, to catch sample swaps, contamination
-   and mislabelling. Skipped for `amplicon_16s` samples; toggle with
-   `--skip_species_id`.
+   family) and reported as `match` / `mismatch` / `no_hit` / `not_checked`
+   (kraken2 also `low_classified`), along with the fraction of reads each
+   classified, to catch sample swaps, contamination and mislabelling. Skipped
+   for `amplicon_16s` samples; toggle with `--skip_species_id`.
 4. **Reference genome** — for isolates: the samplesheet's `reference` (a local
    FASTA, or an NCBI assembly accession fetched with the
    [NCBI Datasets CLI](https://www.ncbi.nlm.nih.gov/datasets/)), else the

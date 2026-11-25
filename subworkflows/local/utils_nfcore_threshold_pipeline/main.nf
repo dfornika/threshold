@@ -11,8 +11,8 @@
 include { UTILS_NFSCHEMA_PLUGIN     } from '../../nf-core/utils_nfschema_plugin'
 include { paramsSummaryMap          } from 'plugin/nf-schema'
 include { samplesheetToList         } from 'plugin/nf-schema'
-include { parseProjectSylphDbs      } from '../sylph_dbs'
-include { sylphDbProblems           } from '../sylph_dbs'
+include { parseProjectDbs           } from '../project_dbs'
+include { projectDbProblems         } from '../project_dbs'
 include { paramsHelp                } from 'plugin/nf-schema'
 include { completionEmail           } from '../../nf-core/utils_nfcore_pipeline'
 include { completionSummary         } from '../../nf-core/utils_nfcore_pipeline'
@@ -134,15 +134,26 @@ workflow PIPELINE_INITIALISATION {
         }
     }
 
-    // Sylph databases: --sylph_db is the default, --project_sylph_dbs gives
-    // projects their own. Check every non-16S sample ends up with at least one,
-    // that they exist and can be staged together (see subworkflows/local/sylph_dbs.nf).
+    // Species-ID databases: --sylph_db / --kraken2_db are the defaults,
+    // --project_sylph_dbs / --project_kraken2_dbs give projects their own.
+    // sylph: every non-16S sample must end up with at least one. kraken2 is
+    // optional: samples with no kraken2 database just aren't classified with
+    // it. Either way, listed databases must exist and be usable together
+    // (see subworkflows/local/project_dbs.nf).
     if (!params.skip_species_id) {
-        def project_db_rows = params.project_sylph_dbs ? samplesheetToList(params.project_sylph_dbs, "${projectDir}/assets/schema_project_sylph_dbs.json") : []
-        def sylph_checks = sylphDbProblems(samplesheet_rows.collect { row -> row[0] }, parseProjectSylphDbs(project_db_rows), params.sylph_db)
-        sylph_checks.warnings.each { warning -> log.warn(warning) }
-        if (sylph_checks.errors) {
-            error("Problem with the sylph databases:\n  - " + sylph_checks.errors.join("\n  - "))
+        def db_errors = []
+        def sample_metas = samplesheet_rows.collect { row -> row[0] }
+        [
+            [tool: 'sylph', default_db: params.sylph_db, csv: params.project_sylph_dbs, required: true],
+            [tool: 'kraken2', default_db: params.kraken2_db, csv: params.project_kraken2_dbs, required: false],
+        ].each { cfg ->
+            def rows = cfg.csv ? samplesheetToList(cfg.csv, "${projectDir}/assets/schema_project_${cfg.tool}_dbs.json") : []
+            def checks = projectDbProblems(sample_metas, parseProjectDbs(rows), cfg.default_db, cfg.tool, cfg.required)
+            checks.warnings.each { warning -> log.warn(warning) }
+            db_errors.addAll(checks.errors)
+        }
+        if (db_errors) {
+            error("Problem with the species-ID databases:\n  - " + db_errors.join("\n  - "))
         }
     }
 

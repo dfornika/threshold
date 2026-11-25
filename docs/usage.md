@@ -78,6 +78,50 @@ mixed_project,561
 - A sample's own `expected_taxid` in the samplesheet takes precedence over its project's taxids.
 - Results record which taxids were used, where they came from (`sample` or `project`) and which one matched: `species_check_expected_taxids`, `species_check_expected_source` and `species_check_matched_taxid` in `sample_summary.csv`.
 - The file is checked at startup (`project_id`, integer `expected_taxid`), needs `--species_id_manifest`, and projects with no samples in the run are reported as a warning.
+- Optional `taxon_name` and `taxon_rank` columns (kraken2-style rank codes: `D`, `K`, `P`, `C`, `O`, `F`, `G`, `S`, `S1`) are accepted and validated, but nothing uses them for matching yet.
+- An expected taxid has to exist in the taxonomy of the classifier being checked: sylph results use the manifest's lineage (current NCBI taxonomy, or whichever dump you built it from), kraken2 results the taxonomy of the kraken2 database, which dates from when it was built. A taxid NCBI introduced later, or a species it has since renamed (e.g. SARS-CoV-2's species is now 3418604; older databases have 694009), matches in one and not the other.
+
+## Species-ID databases (sylph and kraken2)
+
+Two classifiers screen each sample (except `amplicon_16s` ones, which a whole-genome database can't classify):
+
+- **sylph** (`--sylph_db`) always runs: it names the closest genome, which the reference-genome step needs. It runs with `--estimate-unknown`, so its `Sequence_abundance` values are shares of **all** reads and the hits can sum to less than 100% (the remainder is unclassified). `sylph_classified_pct` in the species-check output is that sum.
+- **kraken2** (`--kraken2_db`, a database directory) is optional: it runs only for samples that have a kraken2 database. Its report lists every taxon's NCBI taxid with the reads in the taxon's whole branch, so an expected taxid at any rank is a direct lookup, with no manifest needed. bracken isn't included: it needs a database built for the reads' length and re-estimates abundances at one rank, which the species check doesn't need.
+
+### Databases per project
+
+Both take a per-project CSV, `--project_sylph_dbs` and `--project_kraken2_dbs`, with one row per project and database (a project can be listed several times):
+
+```csv title="project_sylph_dbs.csv"
+project_id,sylph_db
+virology,/dbs/refseq_viral.syldb
+mixed,default
+mixed,/dbs/refseq_viral.syldb
+```
+
+- A project that is listed is screened **only** against the databases listed for it; every other sample uses the default (`--sylph_db` / `--kraken2_db`). The reserved value `default` stands for the default database, so a project can add to it instead of replacing it (`mixed` above). There's no per-sample database option.
+- **sylph:** all of a sample's databases go to **one** `sylph profile` call, which resolves them jointly: one profile whose abundances sum to 100% across databases. Separate runs per database would each call their own top hit 100% and couldn't be combined. Hits are ranked by `Sequence_abundance` (share of reads), not taxonomic abundance, which counts genome copies and so favours tiny genomes (a few viral reads can out-rank a bacterium holding most of the reads).
+- **kraken2:** one run per database (kraken2 takes one), with the database name in the output file name (`<sample>.<database>.kraken2.report.txt`). The species check evaluates each report and keeps the best verdict (`match` > `mismatch` > `low_classified` > `no_hit` > `not_checked`), since a viral sample is expected to be unclassified in a bacterial database. The kraken2 values reported come from the database that decided it.
+- Checked at startup: every listed database exists (a kraken2 database must contain `hash.k2d`), `default` needs `--sylph_db` / `--kraken2_db`, every sample that gets screened has a sylph database, and one sample's databases don't share a file name. sylph needs a database for every such sample; kraken2 doesn't.
+- Relative paths in these CSVs are resolved from the directory you launch the pipeline in.
+
+### The kraken2 verdict
+
+Per report, with the expected taxa from the sample's `expected_taxid` or its project (see above), E = the reads in the expected taxa's branches (an expected taxon inside another is counted once):
+
+| verdict          | when                                                                                                                                                       |
+| ---------------- | ---------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| `not_checked`    | no expected taxa (the top taxon is still reported)                                                                                                         |
+| `no_hit`         | no reads were classified                                                                                                                                   |
+| `low_classified` | fewer than `--kraken2_min_classified_pct` (default 50) of **all** reads were classified, so the classified ones say too little to call a match or mismatch |
+| `match`          | E is at least `--kraken2_min_expected_pct` (default 70) of the **classified** reads                                                                        |
+| `mismatch`       | otherwise                                                                                                                                                  |
+
+For `metagenomic` samples a taxon only needs to be present: `match` if E is at least `--kraken2_min_metagenomic_pct` (default 1) of the classified reads, and `low_classified` isn't applied. The columns are in `species_check_summary.tsv` and, abbreviated, in `sample_summary.csv` (`species_check_kraken2_*`, `species_check_sylph_classified_pct`). The kraken2 reports are published to `kraken2/` and included in the MultiQC reports, including the per-project ones.
+
+The sylph verdict (`species_check`) is unchanged and is still what reference selection and speccheck use; the kraken2 verdict is reported alongside it, not combined with it.
+
+**Resources:** each kraken2 task loads its whole database into memory (the module's default request is 72 GB). Many samples at once on one node may need `--memory-mapping` (`ext.args` for `KRAKEN2_KRAKEN2` in a custom config), which lets them share the operating system's cache, or a lower concurrency (`maxForks`).
 
 ## Species-ID manifest
 
@@ -107,6 +151,16 @@ python3 scripts/build_species_manifest_from_gtdb.py \
   To add the column to any existing manifest (e.g. a hand-built one): `python3 scripts/add_lineage_to_manifest.py --taxdump new_taxdump/ manifest.csv -o manifest.lineage.csv`. Retired taxids are mapped to their current ones via `merged.dmp`; an expected taxid that NCBI has since retired won't match (it comes back `mismatch`), so use current taxids.
 
 - The NCBI taxonomy is per genome. Uncultured or metagenome-assembled genomes are often filed above species level by NCBI, and GTDB species can span several NCBI species (e.g. _E. coli_ and _Shigella_), so a hit reports the NCBI species of that particular genome.
+
+For genomes that aren't from GTDB (viral, fungal, anything named by RefSeq/GenBank assembly accession), `scripts/build_species_manifest_from_ncbi.py` builds rows from NCBI's assembly summary files, which list every assembly's taxid, species taxid and organism, and from the taxonomy dump (species names and lineage). One manifest covers every sylph database, since it's keyed by accession, so merge the pieces:
+
+```bash
+python3 scripts/build_species_manifest_from_ncbi.py assembly_summary.txt \
+    --taxdump new_taxdump/ --accessions viral_genomes.txt -o viral_manifest.csv
+python3 scripts/merge_species_manifests.py gtdb_manifest.csv viral_manifest.csv -o species_id_manifest.csv
+```
+
+(add `names.dmp` to the `tar -xzf` above; `merge_species_manifests.py` keeps the first file's row when an accession is in several.) kraken2 doesn't use the manifest.
 
 ## Running the pipeline
 
@@ -266,7 +320,7 @@ groups/
       sample_summary.csv
 ```
 
-`--multiqc_group_by` chooses the samplesheet fields to group by: a comma-separated list of `project_id`, `tags`, `sample_type` and `platform` (default `project_id,tags`). Each of a sample's tags is its own group, so a sample can appear in several. Samples with no value for a field are in no group for it, so samplesheets without `project_id` or `tags` get no `groups/` directory. Set `--multiqc_group_by ''` (or `multiqc_group_by: ""` in a `-params-file`) to turn per-group reports off.
+`--multiqc_group_by` chooses the samplesheet fields to group by: a comma-separated list of `project_id`, `tags`, `sample_type` and `platform` (default `project_id`). Each of a sample's tags is its own group, so a sample can appear in several. Samples with no value for a field are in no group for it, so samplesheets without `project_id` or `tags` get no `groups/` directory. Set `--multiqc_group_by ''` (or `multiqc_group_by: ""` in a `-params-file`) to turn per-group reports off.
 
 ### Published reads
 

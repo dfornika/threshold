@@ -1,0 +1,4 @@
+project_id,sylph_db
+project_a,default
+project_a,tests/data/species_db/sylph/viral_mini.syldb
+project_b,tests/data/species_db/sylph/viral_mini.syldb
