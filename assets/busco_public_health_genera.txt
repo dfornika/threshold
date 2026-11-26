@@ -1,0 +1,75 @@
+# Genera of human public health interest, one per line. bin/fetch_busco_lineages.py
+# maps these through assets/busco_lineages.tsv to the BUSCO lineages worth
+# downloading for a reference genomics lab (about 50 lineages instead of ~370).
+# Genera with no row in the table are skipped with a notice.
+# Enterics and gut pathogens
+Escherichia
+Shigella
+Salmonella
+Klebsiella
+Raoultella
+Enterobacter
+Citrobacter
+Cronobacter
+Serratia
+Proteus
+Morganella
+Yersinia
+Vibrio
+Aeromonas
+Campylobacter
+Helicobacter
+Arcobacter
+# Non-fermenters and respiratory
+Pseudomonas
+Acinetobacter
+Stenotrophomonas
+Burkholderia
+Achromobacter
+Bordetella
+Neisseria
+Haemophilus
+Pasteurella
+Moraxella
+Legionella
+Eikenella
+Kingella
+# Gram-positives
+Staphylococcus
+Streptococcus
+Enterococcus
+Listeria
+Bacillus
+Clostridium
+Clostridioides
+Corynebacterium
+# Mycobacteria and actinomycetes
+Mycobacterium
+Mycolicibacterium
+Nocardia
+Actinomyces
+Cutibacterium
+Gardnerella
+# Zoonotic and fastidious
+Brucella
+Francisella
+Bartonella
+Coxiella
+Rickettsia
+Orientia
+Leptospira
+Borrelia
+Treponema
+Chlamydia
+Chlamydophila
+Mycoplasma
+Ureaplasma
+# Anaerobes and others
+Bacteroides
+Fusobacterium
+Prevotella
+Porphyromonas
+Lactobacillus
+Elizabethkingia
+Chryseobacterium
+Capnocytophaga

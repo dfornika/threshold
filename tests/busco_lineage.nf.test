@@ -127,6 +127,72 @@ nextflow_function {
         }
     }
 
+    test("resolveBuscoLineage: a lineage missing from the database falls back to the default") {
+
+        function "resolveBuscoLineage"
+
+        when {
+            function {
+                """
+                input[0] = [id: 'S1']
+                input[1] = 'Listeria monocytogenes'
+                input[2] = [Listeria: 'listeria_odb12']
+                input[3] = 'bacteria_odb12'
+                input[4] = ['bacteria_odb12', 'bacillus_odb12']
+                """
+            }
+        }
+
+        then {
+            assert function.success
+            assert function.result == 'bacteria_odb12'
+        }
+    }
+
+    test("resolveBuscoLineage: a lineage present in the database is used") {
+
+        function "resolveBuscoLineage"
+
+        when {
+            function {
+                """
+                input[0] = [id: 'S1']
+                input[1] = 'Listeria monocytogenes'
+                input[2] = [Listeria: 'listeria_odb12']
+                input[3] = 'bacteria_odb12'
+                input[4] = ['bacteria_odb12', 'listeria_odb12']
+                """
+            }
+        }
+
+        then {
+            assert function.success
+            assert function.result == 'listeria_odb12'
+        }
+    }
+
+    test("resolveBuscoLineage: a samplesheet lineage is never replaced, even if missing") {
+
+        function "resolveBuscoLineage"
+
+        when {
+            function {
+                """
+                input[0] = [id: 'S1', busco_lineage: 'listeria_odb12']
+                input[1] = 'Listeria monocytogenes'
+                input[2] = [Listeria: 'listeria_odb12']
+                input[3] = 'bacteria_odb12'
+                input[4] = ['bacteria_odb12']
+                """
+            }
+        }
+
+        then {
+            assert function.success
+            assert function.result == 'listeria_odb12'
+        }
+    }
+
     test("the shipped assets/busco_lineages.tsv is well formed") {
 
         function "loadBuscoLineageTable"

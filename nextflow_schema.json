@@ -361,7 +361,7 @@
                 "busco_db": {
                     "type": "string",
                     "format": "path",
-                    "description": "Directory of pre-downloaded BUSCO lineage datasets (it holds a lineages/ subdirectory). Optional - BUSCO only runs when this is set. Prefetch with busco --download prokaryota.",
+                    "description": "Directory of pre-downloaded BUSCO lineage datasets (it holds a lineages/ subdirectory). Optional - BUSCO only runs when this is set. May hold only some lineages: a lineage that is not there falls back to --busco_default_lineage, which must be. Prefetch a public health subset with bin/fetch_busco_lineages.py.",
                     "fa_icon": "fas fa-database"
                 },
                 "busco_default_lineage": {

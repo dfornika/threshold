@@ -128,9 +128,22 @@ The sylph verdict (`species_check`) is unchanged and is still what reference sel
 
 BUSCO is opt-in: it runs on each assembly only when `--busco_db` points at a
 directory of pre-downloaded BUSCO lineage datasets (the directory that holds
-`lineages/`), so runs need no network access. Prefetch with
-`busco --download prokaryota --download_path <dir>` (BUSCO 6.1, odb12
-datasets).
+`lineages/`), so runs need no network access. The full prokaryote set is large
+(367 lineages), and a public health lab rarely needs it, so
+`bin/fetch_busco_lineages.py` fetches a subset: the lineages for the genera in
+`assets/busco_public_health_genera.txt` (about 50 lineages, roughly 1.6 GB) plus
+the default lineage. It checks each download's md5, skips what is already
+there, and can be re-run to top up:
+
+```bash
+bin/fetch_busco_lineages.py --out /data/busco_db --dry-run   # list what it would fetch
+bin/fetch_busco_lineages.py --out /data/busco_db
+bin/fetch_busco_lineages.py --out /data/busco_db --lineage rhodococcus_odb12   # add one
+bin/fetch_busco_lineages.py --out /data/busco_db --all       # every prokaryote lineage
+```
+
+Edit the genus file to suit your lab. It lists genera, not lineages, so it
+stays valid when the lineage table is regenerated.
 
 A more specific lineage gives a more sensitive completeness estimate, so the
 lineage is chosen per sample, first match wins:
@@ -140,6 +153,12 @@ lineage is chosen per sample, first match wins:
    row, then its genus row) - only when the species check agrees with the
    samplesheet or there was nothing to check against;
 3. `--busco_default_lineage` (`bacteria_odb12`).
+
+With a partial `--busco_db`, a lineage from step 2 that was not downloaded falls
+back to the default with a warning, so an unexpected organism still gets a
+(less specific) BUSCO result. The default lineage must be in the database, or
+the run stops at startup. A `busco_lineage` from the samplesheet is never
+replaced: if it is missing, BUSCO fails for that sample.
 
 `assets/busco_lineages.tsv` maps every bacterial and archaeal genus to its
 most specific BUSCO lineage. It is generated, not edited: see the docstring of

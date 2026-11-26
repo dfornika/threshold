@@ -9,6 +9,12 @@
 //      species row (two words) first, then its genus row;
 //   3. the default lineage (--busco_default_lineage).
 //
+// --busco_db may hold only some lineages (a public health lab does not need
+// all ~370). When the set of available lineages is given, a looked-up lineage
+// that is not there falls back to the default, so an unexpected organism still
+// gets a BUSCO result. A samplesheet busco_lineage is an explicit choice, so
+// it is never replaced: if it is missing, BUSCO fails for that sample.
+//
 
 //
 // Read assets/busco_lineages.tsv into a map of taxon name -> lineage.
@@ -26,15 +32,20 @@ def loadBuscoLineageTable(lines) {
 
 //
 // species is the species-check name, or null when it is unusable (no hit, or
-// it disagrees with the samplesheet).
+// it disagrees with the samplesheet). available is a collection of lineage
+// names present in the BUSCO database, or null to skip the availability check.
 //
-def resolveBuscoLineage(meta, species, table, defaultLineage) {
+def resolveBuscoLineage(meta, species, table, defaultLineage, available = null) {
     if (meta.busco_lineage) {
         return meta.busco_lineage
     }
+    def lineage = defaultLineage
     if (species) {
         def genus = species.tokenize(' ')[0]
-        return table[species] ?: table[genus] ?: defaultLineage
+        lineage = table[species] ?: table[genus] ?: defaultLineage
     }
-    return defaultLineage
+    if (available != null && !(lineage in available)) {
+        return defaultLineage
+    }
+    return lineage
 }
