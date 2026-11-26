@@ -22,6 +22,8 @@ include { DRAGONFLYE        } from '../../modules/nf-core/dragonflye/main'
 include { QUAST             } from '../../modules/nf-core/quast/main'
 include { CHECKM2_PREDICT   } from '../../modules/nf-core/checkm2/predict/main'
 include { BUSCO_BUSCO       } from '../../modules/nf-core/busco/busco/main'
+include { loadBuscoLineageTable } from './busco_lineage'
+include { resolveBuscoLineage } from './busco_lineage'
 include { ASSEMBLY_SUMMARY  } from '../../modules/local/assembly_summary/main'
 
 workflow ASSEMBLY_ANALYSIS {
@@ -186,12 +188,7 @@ workflow ASSEMBLY_ANALYSIS {
         //
         def ch_busco = channel.empty()
         if (params.busco_db) {
-            def busco_table = [:]
-            file("${projectDir}/assets/busco_lineages.tsv", checkIfExists: true).eachLine { line ->
-                if (line.startsWith('#') || line.startsWith('taxon\t')) { return }
-                def cols = line.split('\t')
-                busco_table[cols[0]] = cols[1]
-            }
+            def busco_table = loadBuscoLineageTable(file("${projectDir}/assets/busco_lineages.tsv", checkIfExists: true).readLines())
 
             def ch_organism_by_id = ch_species_check.map { m, tsv ->
                 def cols = tsv.text.trim().split('\t')
@@ -203,9 +200,8 @@ workflow ASSEMBLY_ANALYSIS {
                 .join(ch_organism_by_id, remainder: true)
                 .filter { entry -> entry[1] != null }   // assemblies only, not remainder-only species rows
                 .multiMap { _id, meta, fa, species ->
-                    def genus = species ? species.tokenize(' ')[0] : null
                     assembly: tuple(meta, fa)
-                    lineage:  meta.busco_lineage ?: busco_table[species] ?: busco_table[genus] ?: params.busco_default_lineage
+                    lineage:  resolveBuscoLineage(meta, species, busco_table, params.busco_default_lineage)
                 }
 
             def ch_busco_db = channel.value(file(params.busco_db, checkIfExists: true))

@@ -1,0 +1,151 @@
+nextflow_function {
+
+    name "BUSCO lineage selection"
+    script "../subworkflows/local/busco_lineage.nf"
+    tag "functions"
+
+    test("loadBuscoLineageTable skips comments and the header") {
+
+        function "loadBuscoLineageTable"
+
+        when {
+            function {
+                """
+                input[0] = ['# a comment', 'taxon\\tbusco_lineage', 'Escherichia\\tenterobacteriaceae_odb12', '', 'Listeria\\tlisteria_odb12']
+                """
+            }
+        }
+
+        then {
+            assert function.success
+            assert function.result == [Escherichia: 'enterobacteriaceae_odb12', Listeria: 'listeria_odb12']
+        }
+    }
+
+    test("resolveBuscoLineage: the samplesheet lineage wins over the species") {
+
+        function "resolveBuscoLineage"
+
+        when {
+            function {
+                """
+                input[0] = [id: 'S1', busco_lineage: 'bacillota_odb12']
+                input[1] = 'Listeria monocytogenes'
+                input[2] = [Listeria: 'listeria_odb12']
+                input[3] = 'bacteria_odb12'
+                """
+            }
+        }
+
+        then {
+            assert function.success
+            assert function.result == 'bacillota_odb12'
+        }
+    }
+
+    test("resolveBuscoLineage: a species row wins over its genus row") {
+
+        function "resolveBuscoLineage"
+
+        when {
+            function {
+                """
+                input[0] = [id: 'S1']
+                input[1] = 'Escherichia coli'
+                input[2] = ['Escherichia coli': 'escherichia_coli_odb12', Escherichia: 'enterobacteriaceae_odb12']
+                input[3] = 'bacteria_odb12'
+                """
+            }
+        }
+
+        then {
+            assert function.success
+            assert function.result == 'escherichia_coli_odb12'
+        }
+    }
+
+    test("resolveBuscoLineage: falls back to the genus row") {
+
+        function "resolveBuscoLineage"
+
+        when {
+            function {
+                """
+                input[0] = [id: 'S1']
+                input[1] = 'Listeria monocytogenes'
+                input[2] = [Listeria: 'listeria_odb12']
+                input[3] = 'bacteria_odb12'
+                """
+            }
+        }
+
+        then {
+            assert function.success
+            assert function.result == 'listeria_odb12'
+        }
+    }
+
+    test("resolveBuscoLineage: an unlisted genus, or no usable species, gets the default") {
+
+        function "resolveBuscoLineage"
+
+        when {
+            function {
+                """
+                input[0] = [id: 'S1']
+                input[1] = 'Unlistedella exempli'
+                input[2] = [Listeria: 'listeria_odb12']
+                input[3] = 'bacteria_odb12'
+                """
+            }
+        }
+
+        then {
+            assert function.success
+            assert function.result == 'bacteria_odb12'
+        }
+    }
+
+    test("resolveBuscoLineage: a null species (mismatch or no hit) gets the default") {
+
+        function "resolveBuscoLineage"
+
+        when {
+            function {
+                """
+                input[0] = [id: 'S1']
+                input[1] = null
+                input[2] = [Listeria: 'listeria_odb12']
+                input[3] = 'bacteria_odb12'
+                """
+            }
+        }
+
+        then {
+            assert function.success
+            assert function.result == 'bacteria_odb12'
+        }
+    }
+
+    test("the shipped assets/busco_lineages.tsv is well formed") {
+
+        function "loadBuscoLineageTable"
+
+        when {
+            function {
+                """
+                input[0] = new File("\${projectDir}/assets/busco_lineages.tsv").readLines()
+                """
+            }
+        }
+
+        then {
+            assert function.success
+            def table = function.result
+            assert table.size() > 1000
+            assert table.every { taxon, lineage -> taxon ==~ /[A-Z][A-Za-z-]*( [a-z-]+)?/ && lineage ==~ /[a-z0-9_-]+_odb[0-9]+/ }
+            assert table['Escherichia'] == 'enterobacteriaceae_odb12'
+            assert table['Listeria'] == 'listeria_odb12'
+        }
+    }
+}
