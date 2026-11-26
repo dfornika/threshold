@@ -69,7 +69,7 @@ workflow THRESHOLD {
     //
     // SUBWORKFLOW: Draft genome assembly + assembly QC - isolates only,
     // routed by platform to Shovill (Illumina) / Dragonflye (Nanopore), then
-    // QUAST + (optional) CheckM2.
+    // QUAST + (optional) CheckM2 and BUSCO.
     //
     def assembly_analysis_out = ASSEMBLY_ANALYSIS(
         ch_clean_reads,
@@ -83,13 +83,14 @@ workflow THRESHOLD {
     //
     // SUBWORKFLOW: Species-specific QC thresholds (incl. QualiBact) with
     // speccheck, for assembled isolates whose species is settled - checks the
-    // QUAST / sylph / fastp / CheckM2 outputs above against criteria for the
+    // QUAST / sylph / fastp / CheckM2 / BUSCO outputs above against criteria for the
     // sample's species.
     //
     def speccheck_out = SPECCHECK(
         species_id_out.species_check,
         assembly_analysis_out.quast_report,
         assembly_analysis_out.checkm2_report,
+        assembly_analysis_out.busco_report,
         species_id_out.sylph_profile,
         read_qc_and_dehosting_out.fastp_json
     )

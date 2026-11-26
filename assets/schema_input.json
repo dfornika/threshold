@@ -73,6 +73,12 @@
                 "minimum": 1,
                 "errorMessage": "genome_size should be a positive integer (bp)",
                 "meta": ["genome_size"]
+            },
+            "busco_lineage": {
+                "type": "string",
+                "pattern": "^[a-z0-9_-]+_odb[0-9]+(\\.[0-9]+)?$",
+                "errorMessage": "busco_lineage should be a BUSCO lineage dataset name such as enterobacteriaceae_odb12.2",
+                "meta": ["busco_lineage"]
             }
         },
         "required": ["sample", "fastq_1", "platform", "sample_type"]

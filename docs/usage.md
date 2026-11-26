@@ -28,11 +28,12 @@ The pipeline does not try to infer what kind of library each sample is - it take
 | `expected_taxid`         | no       | NCBI taxid the sample should be within, at any rank: a strain, species (e.g. `562`, _Escherichia coli_), genus or family (e.g. `543`, Enterobacteriaceae). Names are not accepted. The species-ID result is checked against it (`match` / `mismatch` / `unresolved`); without it, the sample's project taxids are used if `--project_expected_taxids` lists them, otherwise the top hit is just reported (`not_checked`). Needs `--species_id_manifest`; matching above species level needs its `lineage_taxids` column. |
 | `reference`              | no       | Reference genome for an isolate: an NCBI assembly accession (`GCF_...` / `GCA_...`, fetched and cached) or a path to a local FASTA. Without it, the species-ID top hit's genome is used when it agrees with `expected_taxid`.                                                                                                                                                                                                                                                                                            |
 | `genome_size`            | no       | Expected genome size in bp, passed to the assembler. Without it, the reference genome's length (or a per-species lookup, or `--default_genome_size`) is used.                                                                                                                                                                                                                                                                                                                                                            |
+| `busco_lineage`          | no       | BUSCO lineage dataset to use for this sample, e.g. `enterobacteriaceae_odb12.2`. Overrides the lineage that would be looked up from the species. Only used with `--busco_db`.                                                                                                                                                                                                                                                                                                                                            |
 | `project_id`             | no       | Project the sample belongs to (letters, numbers, `_`, `-`, `.`). Samples sharing a `project_id` get their own MultiQC report and `sample_summary.csv` (see [Per-group reports](#per-group-reports)).                                                                                                                                                                                                                                                                                                                     |
 | `tags`                   | no       | Free-form labels, colon-separated (e.g. `rerun:validation`), the same format as nf-core/seqinspector. Each tag gets its own report and summary.                                                                                                                                                                                                                                                                                                                                                                          |
 | `publish_dehosted_reads` | no       | `true` to publish this sample's final (dehosted) reads to `dehost/`. Off by default; `--publish_dehosted_reads` turns it on for all samples.                                                                                                                                                                                                                                                                                                                                                                             |
 
-Every column describes the sample, not the run, so all rows for the same `sample` must agree on `platform`, `sample_type`, `expected_taxid`, `reference`, `genome_size`, `project_id`, `tags` and `publish_dehosted_reads`.
+Every column describes the sample, not the run, so all rows for the same `sample` must agree on `platform`, `sample_type`, `expected_taxid`, `reference`, `genome_size`, `busco_lineage`, `project_id`, `tags` and `publish_dehosted_reads`.
 
 ### Multiple runs of the same sample
 
@@ -122,6 +123,47 @@ For `metagenomic` samples a taxon only needs to be present: `match` if E is at l
 The sylph verdict (`species_check`) is unchanged and is still what reference selection and speccheck use; the kraken2 verdict is reported alongside it, not combined with it.
 
 **Resources:** each kraken2 task loads its whole database into memory (the module's default request is 72 GB). Many samples at once on one node may need `--memory-mapping` (`ext.args` for `KRAKEN2_KRAKEN2` in a custom config), which lets them share the operating system's cache, or a lower concurrency (`maxForks`).
+
+## BUSCO lineages
+
+BUSCO is opt-in: it runs on each assembly only when `--busco_db` points at a
+directory of pre-downloaded BUSCO lineage datasets (the directory that holds
+`lineages/`), so runs need no network access. The full prokaryote set is large
+(370 lineages), and a public health lab rarely needs it, so
+`bin/fetch_busco_lineages.py` fetches a subset: the lineages for the genera in
+`assets/busco_public_health_genera.txt` (about 50 lineages, roughly 1.6 GB) plus
+the default lineage. It checks each download's md5, skips what is already
+there, and can be re-run to top up:
+
+```bash
+bin/fetch_busco_lineages.py --out /data/busco_db --dry-run   # list what it would fetch
+bin/fetch_busco_lineages.py --out /data/busco_db
+bin/fetch_busco_lineages.py --out /data/busco_db --lineage rhodococcus_odb12.2   # add one
+bin/fetch_busco_lineages.py --out /data/busco_db --all       # every prokaryote lineage
+```
+
+Edit the genus file to suit your lab. It lists genera, not lineages, so it
+stays valid when the lineage table is regenerated.
+
+A more specific lineage gives a more sensitive completeness estimate, so the
+lineage is chosen per sample, first match wins:
+
+1. the samplesheet's `busco_lineage`;
+2. the species-check name, looked up in `assets/busco_lineages.tsv` (a species
+   row, then its genus row) - only when the species check agrees with the
+   samplesheet or there was nothing to check against;
+3. `--busco_default_lineage` (`bacteria_odb12.2`).
+
+With a partial `--busco_db`, a lineage from step 2 that was not downloaded falls
+back to the default with a warning, so an unexpected organism still gets a
+(less specific) BUSCO result. The default lineage must be in the database, or
+the run stops at startup. A `busco_lineage` from the samplesheet is never
+replaced: if it is missing, BUSCO fails for that sample.
+
+`assets/busco_lineages.tsv` maps every bacterial and archaeal genus to its
+most specific BUSCO lineage. It is generated, not edited: see the docstring of
+`bin/make_busco_lineage_table.py` for how to regenerate it when BUSCO or the
+NCBI taxonomy changes.
 
 ## Species-ID manifest
 
