@@ -14,7 +14,7 @@ are already present are skipped, so the script can be re-run to top up.
 Standard library only. Examples:
   fetch_busco_lineages.py --out /data/busco_db --dry-run
   fetch_busco_lineages.py --out /data/busco_db
-  fetch_busco_lineages.py --out /data/busco_db --lineage rhodococcus_odb12
+  fetch_busco_lineages.py --out /data/busco_db --lineage rhodococcus_odb12.2
 """
 
 import argparse
@@ -73,7 +73,7 @@ def main():
     ap.add_argument("--out", required=True, help="BUSCO database directory (lineages/ is created inside)")
     ap.add_argument("--genera", default=str(HERE / "busco_public_health_genera.txt"))
     ap.add_argument("--table", default=str(HERE / "busco_lineages.tsv"))
-    ap.add_argument("--default-lineage", default="bacteria_odb12")
+    ap.add_argument("--default-lineage", default="bacteria_odb12.2")
     ap.add_argument("--lineage", action="append", default=[], help="extra lineage to fetch (repeatable)")
     ap.add_argument("--all", action="store_true", help="fetch every prokaryote lineage for the default version")
     ap.add_argument("--file-versions", default=f"{BASE}/file_versions.tsv")

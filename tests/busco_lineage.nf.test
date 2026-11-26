@@ -11,14 +11,14 @@ nextflow_function {
         when {
             function {
                 """
-                input[0] = ['# a comment', 'taxon\\tbusco_lineage', 'Escherichia\\tenterobacteriaceae_odb12', '', 'Listeria\\tlisteria_odb12']
+                input[0] = ['# a comment', 'taxon\\tbusco_lineage', 'Escherichia\\tenterobacteriaceae_odb12.2', '', 'Listeria\\tlisteria_odb12.2']
                 """
             }
         }
 
         then {
             assert function.success
-            assert function.result == [Escherichia: 'enterobacteriaceae_odb12', Listeria: 'listeria_odb12']
+            assert function.result == [Escherichia: 'enterobacteriaceae_odb12.2', Listeria: 'listeria_odb12.2']
         }
     }
 
@@ -29,17 +29,17 @@ nextflow_function {
         when {
             function {
                 """
-                input[0] = [id: 'S1', busco_lineage: 'bacillota_odb12']
+                input[0] = [id: 'S1', busco_lineage: 'bacillota_odb12.2']
                 input[1] = 'Listeria monocytogenes'
-                input[2] = [Listeria: 'listeria_odb12']
-                input[3] = 'bacteria_odb12'
+                input[2] = [Listeria: 'listeria_odb12.2']
+                input[3] = 'bacteria_odb12.2'
                 """
             }
         }
 
         then {
             assert function.success
-            assert function.result == 'bacillota_odb12'
+            assert function.result == 'bacillota_odb12.2'
         }
     }
 
@@ -52,15 +52,15 @@ nextflow_function {
                 """
                 input[0] = [id: 'S1']
                 input[1] = 'Escherichia coli'
-                input[2] = ['Escherichia coli': 'escherichia_coli_odb12', Escherichia: 'enterobacteriaceae_odb12']
-                input[3] = 'bacteria_odb12'
+                input[2] = ['Escherichia coli': 'escherichia_coli_odb12.2', Escherichia: 'enterobacteriaceae_odb12.2']
+                input[3] = 'bacteria_odb12.2'
                 """
             }
         }
 
         then {
             assert function.success
-            assert function.result == 'escherichia_coli_odb12'
+            assert function.result == 'escherichia_coli_odb12.2'
         }
     }
 
@@ -73,15 +73,15 @@ nextflow_function {
                 """
                 input[0] = [id: 'S1']
                 input[1] = 'Listeria monocytogenes'
-                input[2] = [Listeria: 'listeria_odb12']
-                input[3] = 'bacteria_odb12'
+                input[2] = [Listeria: 'listeria_odb12.2']
+                input[3] = 'bacteria_odb12.2'
                 """
             }
         }
 
         then {
             assert function.success
-            assert function.result == 'listeria_odb12'
+            assert function.result == 'listeria_odb12.2'
         }
     }
 
@@ -94,15 +94,15 @@ nextflow_function {
                 """
                 input[0] = [id: 'S1']
                 input[1] = 'Unlistedella exempli'
-                input[2] = [Listeria: 'listeria_odb12']
-                input[3] = 'bacteria_odb12'
+                input[2] = [Listeria: 'listeria_odb12.2']
+                input[3] = 'bacteria_odb12.2'
                 """
             }
         }
 
         then {
             assert function.success
-            assert function.result == 'bacteria_odb12'
+            assert function.result == 'bacteria_odb12.2'
         }
     }
 
@@ -115,15 +115,15 @@ nextflow_function {
                 """
                 input[0] = [id: 'S1']
                 input[1] = null
-                input[2] = [Listeria: 'listeria_odb12']
-                input[3] = 'bacteria_odb12'
+                input[2] = [Listeria: 'listeria_odb12.2']
+                input[3] = 'bacteria_odb12.2'
                 """
             }
         }
 
         then {
             assert function.success
-            assert function.result == 'bacteria_odb12'
+            assert function.result == 'bacteria_odb12.2'
         }
     }
 
@@ -136,16 +136,16 @@ nextflow_function {
                 """
                 input[0] = [id: 'S1']
                 input[1] = 'Listeria monocytogenes'
-                input[2] = [Listeria: 'listeria_odb12']
-                input[3] = 'bacteria_odb12'
-                input[4] = ['bacteria_odb12', 'bacillus_odb12']
+                input[2] = [Listeria: 'listeria_odb12.2']
+                input[3] = 'bacteria_odb12.2'
+                input[4] = ['bacteria_odb12.2', 'bacillus_odb12.2']
                 """
             }
         }
 
         then {
             assert function.success
-            assert function.result == 'bacteria_odb12'
+            assert function.result == 'bacteria_odb12.2'
         }
     }
 
@@ -158,16 +158,16 @@ nextflow_function {
                 """
                 input[0] = [id: 'S1']
                 input[1] = 'Listeria monocytogenes'
-                input[2] = [Listeria: 'listeria_odb12']
-                input[3] = 'bacteria_odb12'
-                input[4] = ['bacteria_odb12', 'listeria_odb12']
+                input[2] = [Listeria: 'listeria_odb12.2']
+                input[3] = 'bacteria_odb12.2'
+                input[4] = ['bacteria_odb12.2', 'listeria_odb12.2']
                 """
             }
         }
 
         then {
             assert function.success
-            assert function.result == 'listeria_odb12'
+            assert function.result == 'listeria_odb12.2'
         }
     }
 
@@ -178,18 +178,18 @@ nextflow_function {
         when {
             function {
                 """
-                input[0] = [id: 'S1', busco_lineage: 'listeria_odb12']
+                input[0] = [id: 'S1', busco_lineage: 'listeria_odb12.2']
                 input[1] = 'Listeria monocytogenes'
-                input[2] = [Listeria: 'listeria_odb12']
-                input[3] = 'bacteria_odb12'
-                input[4] = ['bacteria_odb12']
+                input[2] = [Listeria: 'listeria_odb12.2']
+                input[3] = 'bacteria_odb12.2'
+                input[4] = ['bacteria_odb12.2']
                 """
             }
         }
 
         then {
             assert function.success
-            assert function.result == 'listeria_odb12'
+            assert function.result == 'listeria_odb12.2'
         }
     }
 
@@ -209,9 +209,9 @@ nextflow_function {
             assert function.success
             def table = function.result
             assert table.size() > 1000
-            assert table.every { taxon, lineage -> taxon ==~ /[A-Z][A-Za-z-]*( [a-z-]+)?/ && lineage ==~ /[a-z0-9_-]+_odb[0-9]+/ }
-            assert table['Escherichia'] == 'enterobacteriaceae_odb12'
-            assert table['Listeria'] == 'listeria_odb12'
+            assert table.every { taxon, lineage -> taxon ==~ /[A-Z][A-Za-z-]*( [a-z-]+)?/ && lineage ==~ /[a-z0-9_-]+_odb[0-9]+(\.[0-9]+)?/ }
+            assert table['Escherichia'] == 'enterobacteriaceae_odb12.2'
+            assert table['Listeria'] == 'listeria_odb12.2'
         }
     }
 }

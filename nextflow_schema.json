@@ -366,7 +366,7 @@
                 },
                 "busco_default_lineage": {
                     "type": "string",
-                    "default": "bacteria_odb12",
+                    "default": "bacteria_odb12.2",
                     "description": "BUSCO lineage for samples with no busco_lineage in the samplesheet and a species (or genus) with no row in assets/busco_lineages.tsv.",
                     "fa_icon": "fas fa-dna"
                 },

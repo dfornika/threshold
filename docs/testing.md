@@ -379,7 +379,7 @@ written to `${outdir}/assembly/<sample>/<sample>.genome_size.txt`.
   contamination. **Only runs when `--checkm2_db` is provided** - its DIAMOND
   database is a large external download, so it's opt-in. Without it, the
   completeness/contamination columns are `NA` and only QUAST metrics appear.
-- [`BUSCO`](https://busco.ezlab.org) (6.1, odb12 datasets) for single-copy
+- [`BUSCO`](https://busco.ezlab.org) (6.1, odb12.2 datasets) for single-copy
   ortholog completeness. **Only runs when `--busco_db` is provided** - a
   directory of pre-downloaded lineage datasets, so runs need no network. The
   lineage is per sample: the samplesheet `busco_lineage`, else the species

@@ -15,7 +15,7 @@ Inputs (all downloadable, nothing is bundled):
 
 Regenerate when BUSCO ships a new dataset version or NCBI renames clades:
   make_busco_lineage_table.py --file-versions file_versions.tsv \\
-      --taxdump taxdump/ --suffix odb12 > assets/busco_lineages.tsv
+      --taxdump taxdump/ --suffix odb12.2 > assets/busco_lineages.tsv
 """
 
 import argparse
@@ -103,7 +103,7 @@ def main():
     ap = argparse.ArgumentParser(description=__doc__, formatter_class=argparse.RawDescriptionHelpFormatter)
     ap.add_argument("--file-versions", required=True)
     ap.add_argument("--taxdump", required=True)
-    ap.add_argument("--suffix", default="odb12", help="BUSCO dataset version, e.g. odb12")
+    ap.add_argument("--suffix", default="odb12.2", help="BUSCO dataset version, e.g. odb12.2")
     args = ap.parse_args()
 
     taxdump = Path(args.taxdump)
