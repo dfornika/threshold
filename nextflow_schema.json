@@ -370,6 +370,11 @@
                     "description": "BUSCO lineage for samples with no busco_lineage in the samplesheet and a species (or genus) with no row in assets/busco_lineages.tsv.",
                     "fa_icon": "fas fa-dna"
                 },
+                "skip_alignment_qc": {
+                    "type": "boolean",
+                    "description": "Skip alignment-based QC (minimap2 + riker). On by default: each isolate with a reference genome has its reads aligned to it and coverage, alignment-rate and insert-size metrics collected.",
+                    "fa_icon": "fas fa-forward"
+                },
                 "skip_speccheck": {
                     "type": "boolean",
                     "description": "Skip species-specific QC thresholds (speccheck, including QualiBact thresholds) for assembled isolates.",

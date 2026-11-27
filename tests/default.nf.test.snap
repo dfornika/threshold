@@ -36,6 +36,7 @@
                 }
             },
             [
+                "alignment",
                 "dehost",
                 "dehost/SAMPLE_ONT.dehost.stats.tsv",
                 "dehost/SAMPLE_PE.dehost.stats.tsv",
@@ -252,10 +253,10 @@
                 "SAMPLE_PE_final.fastp.json:md5,d6acc452adb15cecefd53aa3b1834672",
                 "SAMPLE_ONT.fastplong.json:md5,142166c0adc26a273717a11c4243b9f0",
                 "SAMPLE_ONT_final.fastplong.json:md5,f79ea432f4000f7c229fdb11a44ce2c1",
-                "sample_summary.csv:md5,8c7ed46710232f1c979891fc7a861b73",
-                "sample_summary.csv:md5,e6bb2e62af6e8e0cbb450008428b70c3",
-                "sample_summary.csv:md5,e6bb2e62af6e8e0cbb450008428b70c3",
-                "sample_summary.csv:md5,36798f6dfc6eb8246592a0ed7199d7dd",
+                "sample_summary.csv:md5,f7ddc85b5886bc796f3e07ad433bb6f0",
+                "sample_summary.csv:md5,bedd22afdf290a36cd2bb060f99958d5",
+                "sample_summary.csv:md5,bedd22afdf290a36cd2bb060f99958d5",
+                "sample_summary.csv:md5,f11467866924ec4132ccbb313eacf582",
                 "SAMPLE_ONT.sarscov2_mini_b.kraken2.report.txt:md5,b08ec30cf9f05bd56c04d46492c2ed8d",
                 "SAMPLE_PE.sarscov2_mini.kraken2.report.txt:md5,ad2154a3e82c4f914d57dd5ba7e2a437",
                 "SAMPLE_PE.sarscov2_mini_b.kraken2.report.txt:md5,ad2154a3e82c4f914d57dd5ba7e2a437",
@@ -289,7 +290,7 @@
                 "multiqc_general_stats.txt:md5,116421a649cb86e1a6eef57013fbd028",
                 "multiqc_kraken.txt:md5,b49d8c2521ab9b872b3d4f2aad2a5d80",
                 "sample_manifest.tsv:md5,4ad639a3e66cc884f5c3c62271bab91f",
-                "sample_summary.csv:md5,36798f6dfc6eb8246592a0ed7199d7dd",
+                "sample_summary.csv:md5,f11467866924ec4132ccbb313eacf582",
                 "SAMPLE_ONT.species_check.tsv:md5,d5ad815bb9604cfefff6431ec3be0309",
                 "SAMPLE_PE.species_check.tsv:md5,d6ebcc957ac0835e9a75cbf60fa745d1",
                 "species_check_summary.tsv:md5,822c39eaa7c8d4a5fdeeb627d9f285cb",
@@ -297,7 +298,7 @@
                 "SAMPLE_PE.tsv:md5,444980a4b547bc42540d034f221fa837"
             ]
         ],
-        "timestamp": "2026-11-25T15:52:39.369063993",
+        "timestamp": "2026-11-27T09:08:25.612877403",
         "meta": {
             "nf-test": "0.9.5",
             "nextflow": "26.04.4"

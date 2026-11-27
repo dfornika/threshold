@@ -8,6 +8,7 @@ include { READ_QC_AND_DEHOSTING         } from '../subworkflows/local/read_qc_an
 include { SPECIES_ID                    } from '../subworkflows/local/species_id'
 include { REFERENCE_GENOME              } from '../subworkflows/local/reference_genome'
 include { ASSEMBLY_ANALYSIS             } from '../subworkflows/local/assembly'
+include { ALIGNMENT_QC                  } from '../subworkflows/local/alignment_qc'
 include { SPECCHECK                     } from '../subworkflows/local/speccheck'
 include { SAMPLE_SUMMARY                } from '../modules/local/sample_summary/main'
 include { GROUP_REPORTS                 } from '../subworkflows/local/group_reports'
@@ -81,6 +82,17 @@ workflow THRESHOLD {
     ch_multiqc_files = ch_multiqc_files.mix(assembly_analysis_out.multiqc_files)
 
     //
+    // SUBWORKFLOW: Alignment-based QC - align the reads of each isolate to its
+    // reference with minimap2 and collect coverage / alignment / insert-size
+    // metrics with riker. Isolates with a reference only.
+    //
+    def alignment_qc_out = ALIGNMENT_QC(
+        ch_clean_reads,
+        reference_genome_out.sample_reference,
+        outdir
+    )
+
+    //
     // SUBWORKFLOW: Species-specific QC thresholds (incl. QualiBact) with
     // speccheck, for assembled isolates whose species is settled - checks the
     // QUAST / sylph / fastp / CheckM2 / BUSCO outputs above against criteria for the
@@ -105,6 +117,7 @@ workflow THRESHOLD {
         read_qc_and_dehosting_out.dehost_summary,
         species_id_out.species_check_summary,
         assembly_analysis_out.assembly_summary,
+        alignment_qc_out.alignment_summary,
         speccheck_out.report
     )
 

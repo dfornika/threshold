@@ -1,0 +1,2 @@
+sample	pair_orientation	read_pairs	mean_insert_size	standard_deviation	median_insert_size	median_absolute_deviation	mode_insert_size	min_insert_size	max_insert_size
+sa_pe	FR	8788	217.36	163.41	152.00	60.00	103	30	1550007

@@ -1,0 +1,43 @@
+name: "alignment_summary"
+description: Normalise one sample's riker alignment metrics (coverage, alignment rate, insert size) into a single summary row
+keywords:
+  - alignment
+  - riker
+  - coverage
+  - qc
+tools:
+  - "python":
+      description: Parses riker's wgs, alignment and isize metrics files into one comparable row
+      homepage: https://www.python.org/
+      licence: ["PSF"]
+
+input:
+  - - meta:
+        type: map
+        description: |
+          Groovy Map containing sample information. Must include `id` and `platform`.
+    - wgs:
+        type: file
+        description: riker wgs-metrics.txt for this sample
+        pattern: "*.wgs-metrics.txt"
+    - alignment:
+        type: file
+        description: Optional. riker alignment-metrics.txt (staged empty when absent)
+        pattern: "*.alignment-metrics.txt"
+    - isize:
+        type: file
+        description: Optional. riker isize-metrics.txt (staged empty when absent; is empty for unpaired reads)
+        pattern: "*.isize-metrics.txt"
+
+output:
+  - summary:
+      - meta:
+          type: map
+          description: Groovy Map containing sample information
+      - "*.alignment_summary.tsv":
+          type: file
+          description: One tab-separated row - sample, platform, mean_depth, median_depth, frac_ref_1x, frac_ref_10x, fold_80_penalty, frac_reads_aligned, median_insert_size
+          pattern: "*.alignment_summary.tsv"
+
+authors:
+  - "@dfornika"

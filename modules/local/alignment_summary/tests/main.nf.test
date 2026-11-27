@@ -1,0 +1,98 @@
+nextflow_process {
+
+    name "Test Process ALIGNMENT_SUMMARY"
+    script "../main.nf"
+    process "ALIGNMENT_SUMMARY"
+
+    tag "modules"
+    tag "modules_local"
+    tag "alignment_summary"
+
+    // Fixtures are real riker 0.5.0 output (see ../tests/data): a paired
+    // Illumina sample (alignment metrics in read1 / read2 / pair rows) and a
+    // Nanopore sample (one read1 row, and an insert-size file that is
+    // completely empty because there are no read pairs).
+
+    test("paired Illumina - uses the pair row and the insert size") {
+
+        when {
+            process {
+                """
+                input[0] = [
+                    [ id:'pe', platform:'illumina' ],
+                    file("\${projectDir}/modules/local/alignment_summary/tests/data/pe.wgs-metrics.txt", checkIfExists: true),
+                    file("\${projectDir}/modules/local/alignment_summary/tests/data/pe.alignment-metrics.txt", checkIfExists: true),
+                    file("\${projectDir}/modules/local/alignment_summary/tests/data/pe.isize-metrics.txt", checkIfExists: true)
+                ]
+                """
+            }
+        }
+
+        then {
+            assert process.success
+            def cols = path(process.out.summary.get(0).get(1)).readLines()[0].split('\t')
+            assertAll(
+                { assert cols.size() == 9 },
+                { assert cols[0] == 'pe' },
+                { assert cols[1] == 'illumina' },
+                { assert cols[2] == '0.64' },            // mean_depth
+                { assert cols[4] == '0.45722' },         // frac_ref_1x
+                { assert cols[7] == '0.90860' },         // frac_reads_aligned, from the pair row (read1 is 0.92970)
+                { assert cols[8] == '152.00' }           // median_insert_size
+            )
+        }
+    }
+
+    test("Nanopore - read1 row, and an empty insert-size file gives NA") {
+
+        when {
+            process {
+                """
+                input[0] = [
+                    [ id:'ont', platform:'nanopore' ],
+                    file("\${projectDir}/modules/local/alignment_summary/tests/data/ont.wgs-metrics.txt", checkIfExists: true),
+                    file("\${projectDir}/modules/local/alignment_summary/tests/data/ont.alignment-metrics.txt", checkIfExists: true),
+                    file("\${projectDir}/modules/local/alignment_summary/tests/data/ont.isize-metrics.txt", checkIfExists: true)
+                ]
+                """
+            }
+        }
+
+        then {
+            assert process.success
+            def cols = path(process.out.summary.get(0).get(1)).readLines()[0].split('\t')
+            assertAll(
+                { assert cols[1] == 'nanopore' },
+                { assert cols[2] == '1.10' },
+                { assert cols[7] == '0.88640' },
+                { assert cols[8] == 'NA' }
+            )
+        }
+    }
+
+    test("alignment and insert-size files absent - only the coverage columns are filled") {
+
+        when {
+            process {
+                """
+                input[0] = [
+                    [ id:'ont', platform:'nanopore' ],
+                    file("\${projectDir}/modules/local/alignment_summary/tests/data/ont.wgs-metrics.txt", checkIfExists: true),
+                    [],
+                    []
+                ]
+                """
+            }
+        }
+
+        then {
+            assert process.success
+            def cols = path(process.out.summary.get(0).get(1)).readLines()[0].split('\t')
+            assertAll(
+                { assert cols[2] == '1.10' },
+                { assert cols[7] == 'NA' },
+                { assert cols[8] == 'NA' }
+            )
+        }
+    }
+}

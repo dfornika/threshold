@@ -236,8 +236,8 @@ abundance calls the sample *E. coli*, as it should.
 
 `REFERENCE_GENOME` (`subworkflows/local/reference_genome.nf`) resolves one
 reference per `isolate` sample (only isolates are assembled, and nothing is
-resolved when `--skip_assembly` is set), used for QUAST's reference-based
-metrics and the assembler genome-size hint. Priority:
+resolved when both `--skip_assembly` and `--skip_alignment_qc` are set), used for QUAST's reference-based
+metrics, the assembler genome-size hint and alignment QC. Priority:
 
 1. the samplesheet's `reference` column - a local FASTA path, used as-is, or
    an NCBI assembly accession (`GCF_`/`GCA_`), fetched;
@@ -428,6 +428,44 @@ shallow for a *quality* Shovill assembly (expect a fragmented result). A proper
 Illumina assembly-quality check needs a deeper subsample; the target read count
 in `data/download_and_subsample.py`'s `MANIFEST` can simply be bumped for a
 dedicated deeper fixture. The ONT isolates are adequate as-is.
+
+### Alignment QC (minimap2 + riker)
+
+`ALIGNMENT_QC` (`subworkflows/local/alignment_qc.nf`) aligns the clean reads of
+each `isolate` that has a reference to that reference and collects metrics with
+[riker](https://github.com/fulcrumgenomics/riker) (`riker multi`, 0.5.0). On by
+default; `--skip_alignment_qc` turns it off. It needs a reference, so it
+follows `REFERENCE_GENOME`, which now runs when either assembly or alignment QC
+is on.
+
+- The reference is made a plain, indexed FASTA first (fetched references are
+  gzipped, and `samtools faidx` cannot index plain gzip): `GUNZIP` only for
+  `.gz` references, then `SAMTOOLS_FAIDX`.
+- `MINIMAP2_ALIGN` writes a sorted, indexed BAM with `-x sr` (Illumina) or
+  `-x map-ont` (Nanopore). The BAM is an intermediate and is not published.
+- `RIKER_MULTI` runs `alignment`, `wgs` and `gcbias`, plus `isize` for paired
+  Illumina only (riker writes an empty insert-size file for unpaired reads).
+  The WGS collector drops unpaired reads and bases below Q20 by default, which
+  discarded about 99% of a Nanopore sample (`frac_excluded_unpaired` 0.987,
+  mean coverage 0.00). So non-paired samples get `--wgs::include-unpaired-reads`
+  and Nanopore also `--wgs::min-bq 0` (see `conf/modules.config`).
+- `ALIGNMENT_SUMMARY` (`bin/parse_riker.py`) reduces each sample to one row:
+  `mean_depth`, `median_depth`, `frac_ref_1x`, `frac_ref_10x`,
+  `fold_80_penalty`, `frac_reads_aligned` and `median_insert_size`, collected
+  into `alignment/alignment_summary.tsv` and the `alignment_*` columns of
+  `sample_summary.csv`. riker's own files are published to
+  `alignment/<sample>/`.
+- Because the reference is usually a species representative, the fraction of
+  the reference covered and of reads aligned also reflect strain differences
+  (plasmids and accessory genes absent from the reference do not map). These
+  are indicators only: nothing gates on them, and speccheck does not read
+  them (its default criteria have no depth rows).
+
+Checked on the dev isolates with the real riker container: *L. monocytogenes*
+ONT (5k reads, plain-FASTA reference) gave mean depth 1.09, 64% of the
+reference at 1x and 89% of reads aligned; *S. aureus* paired Illumina
+(gzipped reference) gave 0.61x, 44% at 1x, 93% aligned and a median insert of
+148 bp.
 
 ### Species-specific QC thresholds (speccheck)
 

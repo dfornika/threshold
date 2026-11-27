@@ -25,9 +25,10 @@ these in from the sequencing project metadata.
 4. Reference genome selection / fetching (isolates)
 5. Draft genome assembly (Shovill / Dragonflye; isolates)
 6. Assembly QC (QUAST, CheckM2)
-7. Species-specific QC thresholds (speccheck)
-8. Reports (MultiQC and `sample_summary.csv`, overall and per project / tag)
-9. Provenance records
+7. Alignment QC against the reference (minimap2, riker; isolates)
+8. Species-specific QC thresholds (speccheck)
+9. Reports (MultiQC and `sample_summary.csv`, overall and per project / tag)
+10. Provenance records
 
 Each step, and the parameters that control it, is described in
 [`docs/pipeline.md`](docs/pipeline.md).

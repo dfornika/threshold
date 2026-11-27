@@ -43,23 +43,32 @@ caveats.
    [`BUSCO`](https://busco.ezlab.org) for single-copy ortholog completeness when
    a `--busco_db` is provided. BUSCO uses the most specific lineage for the
    sample (see [usage](usage.md#busco-lineages)).
-7. **Species-specific QC thresholds** — [`speccheck`](https://gitlab.com/cgps/tools/speccheck)
+7. **Alignment QC** — for `isolate` samples with a reference, the clean reads
+   are aligned to it with [`minimap2`](https://github.com/lh3/minimap2) and
+   [`riker`](https://github.com/fulcrumgenomics/riker) collects coverage
+   (mean / median depth, fraction of the reference at 1x and 10x, evenness),
+   the fraction of reads aligned and, for paired Illumina, the median insert
+   size. The reference is usually a species representative, not the strain of
+   the sample itself, so plasmids and accessory genes will not map: read these
+   as indicators, not pass / fail thresholds (speccheck does not use them).
+   Toggle with `--skip_alignment_qc`.
+8. **Species-specific QC thresholds** — [`speccheck`](https://gitlab.com/cgps/tools/speccheck)
    checks each assembled isolate's QUAST, sylph, fastp and (with
    `--checkm2_db`) CheckM2 and (with `--busco_db`) BUSCO results against criteria for its species, including
    the [QualiBact](https://qualibact.org) thresholds, giving a PASS / WARN /
    FAIL with reasons. Runs only when the species check agrees with the
    samplesheet (or there was no expected taxid). Toggle with `--skip_speccheck`;
    custom criteria via `--speccheck_criteria`.
-8. **Reports** — an all-samples [MultiQC](http://multiqc.info/) report and
+9. **Reports** — an all-samples [MultiQC](http://multiqc.info/) report and
    `sample_summary.csv`, plus one of each per project and per tag (optional
    `project_id` / `tags` samplesheet columns; `--multiqc_group_by`) in
    `groups/<field>/<value>/`.
-9. **Provenance** — the pipeline's `nf-bccdc-provenance` plugin writes
-   [BCCDC-PHL pipeline provenance](https://github.com/BCCDC-PHL/pipeline-provenance-schema)
-   records to `provenance/`: one `<sample>_provenance.yml` per sample (inputs
-   with `sha256`, each process with its tool versions, parameters and
-   container, and outputs) plus `run_provenance.yml`. See
-   [`plugins/nf-bccdc-provenance/README.md`](plugins/nf-bccdc-provenance/README.md).
+10. **Provenance** — the pipeline's `nf-bccdc-provenance` plugin writes
+    [BCCDC-PHL pipeline provenance](https://github.com/BCCDC-PHL/pipeline-provenance-schema)
+    records to `provenance/`: one `<sample>_provenance.yml` per sample (inputs
+    with `sha256`, each process with its tool versions, parameters and
+    container, and outputs) plus `run_provenance.yml`. See
+    [`plugins/nf-bccdc-provenance/README.md`](plugins/nf-bccdc-provenance/README.md).
 
 Planned but not yet implemented: genome annotation (Bakta/Prokka) of the draft
 assemblies, and hybrid (short + long) assembly (which needs an input model that
