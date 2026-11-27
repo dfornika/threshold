@@ -25,6 +25,7 @@ nextflow_pipeline {
                 input               = absolutize('tests/data/samplesheet.csv', 'samplesheet.abs.csv')
                 project_sylph_dbs   = absolutize('tests/data/project_sylph_dbs.csv', 'project_sylph_dbs.abs.csv')
                 project_kraken2_dbs = absolutize('tests/data/project_kraken2_dbs.csv', 'project_kraken2_dbs.abs.csv')
+                project_alignment_refs = absolutize('tests/data/project_alignment_refs.csv', 'project_alignment_refs.abs.csv')
                 outdir              = "$outputDir"
             }
         }

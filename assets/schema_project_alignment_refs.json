@@ -1,0 +1,23 @@
+{
+    "$schema": "https://json-schema.org/draft/2020-12/schema",
+    "$id": "https://raw.githubusercontent.com/BCCDC-PHL/threshold/main/assets/schema_project_alignment_refs.json",
+    "title": "BCCDC-PHL/threshold pipeline - params.project_alignment_refs schema",
+    "description": "Reference genome per project: one row per project_id. The reference is an NCBI assembly accession (GCF_/GCA_...) or a path to a local FASTA, as in the samplesheet's reference column.",
+    "type": "array",
+    "items": {
+        "type": "object",
+        "properties": {
+            "project_id": {
+                "type": "string",
+                "pattern": "^[A-Za-z0-9_.-]+$",
+                "errorMessage": "project_id may only contain letters, numbers, underscores, hyphens and dots (as in the samplesheet)"
+            },
+            "reference": {
+                "type": "string",
+                "pattern": "^\\S+$",
+                "errorMessage": "reference should be an NCBI assembly accession (GCF_/GCA_...) or a path to a FASTA file, with no spaces"
+            }
+        },
+        "required": ["project_id", "reference"]
+    }
+}

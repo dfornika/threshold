@@ -26,7 +26,8 @@ caveats.
    for `amplicon_16s` samples; toggle with `--skip_species_id`.
 4. **Reference genome** — for isolates: the samplesheet's `reference` (a local
    FASTA, or an NCBI assembly accession fetched with the
-   [NCBI Datasets CLI](https://www.ncbi.nlm.nih.gov/datasets/)), else the
+   [NCBI Datasets CLI](https://www.ncbi.nlm.nih.gov/datasets/)), else its
+   project's reference from `--project_alignment_refs`, else the
    species-ID top hit when it agrees with `expected_taxid`. Fetched references
    include the GFF3 annotation (when NCBI has one) and NCBI's assembly and
    sequence reports, and are cached by accession across runs (`--reference_genome_cache_dir`); a

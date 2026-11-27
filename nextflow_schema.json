@@ -336,6 +336,16 @@
                     "description": "CSV (accession,...,taxid,species_taxid,species_name) mapping reference genome accessions to NCBI taxonomy. Required when any sample has an expected_taxid, since sylph's own output carries no taxonomy; also gives readable species names in the output.",
                     "fa_icon": "fas fa-table"
                 },
+                "project_alignment_refs": {
+                    "type": "string",
+                    "format": "file-path",
+                    "exists": true,
+                    "mimetype": "text/csv",
+                    "schema": "assets/schema_project_alignment_refs.json",
+                    "description": "Optional CSV of project_id,reference: one reference genome per project, for isolates without their own samplesheet reference.",
+                    "help_text": "For projects with one organism and a stable reference (e.g. SARS-CoV-2 Wuhan-Hu-1, M. tuberculosis H37Rv). The reference is an NCBI assembly accession (GCF_/GCA_..., fetched and cached) or a path to a local FASTA, like the samplesheet's reference column. Priority: the sample's own reference, then its project's, then the species-ID top hit. A project reference applies whatever the species check says. One row per project; relative paths are resolved from the launch directory.",
+                    "fa_icon": "fas fa-dna"
+                },
                 "skip_reference_genome_fetch": {
                     "type": "boolean",
                     "description": "Skip fetching reference genome accessions from NCBI. Off by default since planned deployment environments have network access; a fetch failure retries then degrades gracefully (see conf/modules.config). Local FASTA paths in the samplesheet's reference column are used either way. Offline test profiles set this to true.",

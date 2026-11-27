@@ -8,7 +8,10 @@
 // Source, in priority order:
 //   1. the samplesheet's `reference` column - a local FASTA path, used as-is,
 //      or an NCBI assembly accession (GCF_/GCA_...), fetched;
-//   2. otherwise, the accession of sylph's top hit, when SPECIES_CHECK found
+//   2. otherwise, the sample's project reference from --project_alignment_refs
+//      (same forms; a deliberate choice, so it applies whatever the species
+//      check said - see project_refs.nf);
+//   3. otherwise, the accession of sylph's top hit, when SPECIES_CHECK found
 //      it consistent with the samplesheet (verdict `match`, or `not_checked`
 //      when no expected_taxid was given) - never for a `mismatch`.
 //
@@ -22,10 +25,10 @@
 //
 
 include { FETCH_REFERENCE_GENOME } from '../../modules/local/fetch_reference_genome/main'
-
-def isAssemblyAccession(value) {
-    return value ==~ /^GC[AF]_\d+(\.\d+)?$/
-}
+include { samplesheetToList      } from 'plugin/nf-schema'
+include { parseProjectRefs       } from './project_refs'
+include { pickReference          } from './project_refs'
+include { isAssemblyAccession    } from './project_refs'
 
 // True when a stage that needs a reference is on.
 def referenceNeeded() {
@@ -39,6 +42,8 @@ workflow REFERENCE_GENOME {
     ch_species_check   // tuple(meta, species_check.tsv) - from SPECIES_ID
 
     main:
+
+    def project_refs = parseProjectRefs(params.project_alignment_refs ? samplesheetToList(params.project_alignment_refs, "${projectDir}/assets/schema_project_alignment_refs.json") : [])
 
     def ch_isolates = ch_clean_reads
         .filter { meta, _reads -> meta.sample_type == 'isolate' && referenceNeeded() }
@@ -62,7 +67,7 @@ workflow REFERENCE_GENOME {
     def ch_source = ch_isolates
         .join(ch_observed, remainder: true)
         .filter { entry -> entry[1] != null }   // drop species-check rows for non-isolates
-        .map { _id, meta, observed -> tuple(meta, meta.reference ? meta.reference.toString() : observed) }
+        .map { _id, meta, observed -> tuple(meta, pickReference(meta, project_refs, observed)) }
         .branch { _meta, reference ->
             none:      !reference
             accession: isAssemblyAccession(reference)
