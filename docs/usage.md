@@ -31,7 +31,7 @@ The pipeline does not try to infer what kind of library each sample is - it take
 | `busco_lineage`          | no       | BUSCO lineage dataset to use for this sample, e.g. `enterobacteriaceae_odb12.2`. Overrides the lineage that would be looked up from the species. Only used with `--busco_db`.                                                                                                                                                                                                                                                                                                                                            |
 | `project_id`             | no       | Project the sample belongs to (letters, numbers, `_`, `-`, `.`). Samples sharing a `project_id` get their own MultiQC report and `sample_summary.csv` (see [Per-group reports](#per-group-reports)).                                                                                                                                                                                                                                                                                                                     |
 | `tags`                   | no       | Free-form labels, colon-separated (e.g. `rerun:validation`), the same format as nf-core/seqinspector. Each tag gets its own report and summary.                                                                                                                                                                                                                                                                                                                                                                          |
-| `publish_dehosted_reads` | no       | `true` to publish this sample's final (dehosted) reads to `dehost/`. Off by default; `--publish_dehosted_reads` turns it on for all samples.                                                                                                                                                                                                                                                                                                                                                                             |
+| `publish_dehosted_reads` | no       | `true` to publish this sample's final (dehosted) reads to `by_sample/<sample>/dehost/`. Off by default; `--publish_dehosted_reads` turns it on for all samples.                                                                                                                                                                                                                                                                                                                                                          |
 
 Every column describes the sample, not the run, so all rows for the same `sample` must agree on `platform`, `sample_type`, `expected_taxid`, `reference`, `genome_size`, `busco_lineage`, `project_id`, `tags` and `publish_dehosted_reads`.
 
@@ -218,7 +218,7 @@ Note that the pipeline will create the following files in your working directory
 
 ```bash
 work                # Directory containing the nextflow working files
-<OUTDIR>            # Finished results in specified location (defined with --outdir)
+<OUTDIR>            # Finished results in specified location (defined with --outdir); layout in docs/output.md
 .nextflow_log       # Log file from Nextflow
 # Other nextflow hidden files, eg. history of pipeline runs and old logs.
 ```
@@ -348,19 +348,20 @@ If you have any questions or issues please send us a message on [Slack](https://
 
 ### Per-group reports
 
-Besides the all-samples MultiQC report (`multiqc/`) and `sample_summary.csv`, the pipeline writes a MultiQC report and a `sample_summary.csv` for each group of samples, in `groups/<field>/<value>/`:
+Besides the all-samples MultiQC report and `sample_summary.csv` (in `summary/`), the pipeline writes a MultiQC report and a `sample_summary.csv` for each group of samples, in `by_<field>/<value>/`:
 
 ```
-groups/
-  project_id/
-    covid-19/
-      project_id-covid-19_multiqc_report.html
-      sample_summary.csv
-  tags/
-    rerun/
-      tags-rerun_multiqc_report.html
-      sample_summary.csv
+by_project/
+  covid-19/
+    project_id-covid-19_multiqc_report.html
+    sample_summary.csv
+by_tag/
+  rerun/
+    tags-rerun_multiqc_report.html
+    sample_summary.csv
 ```
+
+The group directories are `by_project`, `by_tag`, `by_sample_type` and `by_platform`. They hold reports only; each sample's data stays in `by_sample/<sample>/`. See [output](output.md) for the whole layout.
 
 `--multiqc_group_by` chooses the samplesheet fields to group by: a comma-separated list of `project_id`, `tags`, `sample_type` and `platform` (default `project_id`). Each of a sample's tags is its own group, so a sample can appear in several. Samples with no value for a field are in no group for it, so samplesheets without `project_id` or `tags` get no `groups/` directory. Set `--multiqc_group_by ''` (or `multiqc_group_by: ""` in a `-params-file`) to turn per-group reports off.
 

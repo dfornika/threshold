@@ -108,8 +108,8 @@ accidentally be published or picked up downstream, regardless of what
 fastp/fastplong would otherwise have changed - no extra `--disable_*` flags
 or output-suppression logic needed.
 
-Both passes publish to the same per-tool directory (`${outdir}/fastqc/`,
-`${outdir}/fastp/`, `${outdir}/fastplong/`) with an `_raw`/`_final` filename
+Both passes publish to the same per-tool directory
+(`${outdir}/by_sample/<sample>/reads_qc/fastqc/`, `.../fastp/`, `.../fastplong/`) with an `_raw`/`_final` filename
 suffix (`ext.prefix`, `conf/modules.config`) distinguishing them, rather
 than separate subdirectories - keeps the existing one-directory-per-tool
 layout unchanged for every other stage.
@@ -178,7 +178,7 @@ project's taxids from `--project_expected_taxids` (one-to-many); with several,
 any match counts, and `matched_taxid` records which. sylph's output has no
 taxonomy, so `--species_id_manifest` is required whenever there are expected
 taxa - the run fails at startup without it. Collected into
-`${outdir}/species_id/species_check_summary.tsv`.
+`${outdir}/summary/stage_tables/species_check_summary.tsv`.
 
 Checked on `test_full` reads with project taxids: a *K. pneumoniae* sample in a
 project expecting `543` matched at family level (`source: project`); an *E.
@@ -348,7 +348,7 @@ is folded into `meta.genome_size` and passed to both assemblers via
 within ~2x, so a ballpark is all that's needed - the hint only exists to keep
 the assemblers' coverage estimation in the right order of magnitude and to
 avoid the pathological auto-estimates above. The chosen value + its source are
-written to `${outdir}/assembly/<sample>/<sample>.genome_size.txt`.
+written to `${outdir}/by_sample/<sample>/assembly/<sample>.genome_size.txt`.
 
 **QC on the resulting assembly** is platform-agnostic:
 
@@ -366,7 +366,7 @@ written to `${outdir}/assembly/<sample>/<sample>.genome_size.txt`.
   rearrangements), not just assembly error** - they're advisory. For that
   reason only **genome fraction** (a robust completeness cross-check against
   CheckM2) is surfaced in the one-row summary; the misassembly/mismatch numbers
-  stay in the full QUAST report (`${outdir}/assembly/quast/`) rather than
+  stay in the full QUAST report (`${outdir}/by_sample/<sample>/assembly/quast/`) rather than
   inviting over-interpretation in the headline table.
   When the reference was fetched from NCBI with a GFF3 annotation, it's also
   passed as QUAST's `--features`, adding genomic-feature recovery (complete +
@@ -394,7 +394,7 @@ written to `${outdir}/assembly/<sample>/<sample>.genome_size.txt`.
 
 `bin/parse_assembly_qc.py` + the `ASSEMBLY_SUMMARY` module normalise each
 sample's QUAST `report.tsv` (+ CheckM2 `quality_report.tsv` when present) into
-one row, collected into `${outdir}/assembly/assembly_summary.tsv`. Annotation
+one row, collected into `${outdir}/summary/stage_tables/assembly_summary.tsv`. Annotation
 (the "and annotation" half of the original step 8) is **not yet implemented** -
 Bakta/Prokka are the candidates; deferred until the core assembly + QC path is
 validated on more real data.
@@ -452,9 +452,9 @@ is on.
 - `ALIGNMENT_SUMMARY` (`bin/parse_riker.py`) reduces each sample to one row:
   `mean_depth`, `median_depth`, `frac_ref_1x`, `frac_ref_10x`,
   `fold_80_penalty`, `frac_reads_aligned` and `median_insert_size`, collected
-  into `alignment/alignment_summary.tsv` and the `alignment_*` columns of
+  into `summary/stage_tables/alignment_summary.tsv` and the `alignment_*` columns of
   `sample_summary.csv`. riker's own files are published to
-  `alignment/<sample>/`.
+  `by_sample/<sample>/alignment/`.
 - Because the reference is usually a species representative, the fraction of
   the reference covered and of reads aligned also reflect strain differences
   (plasmids and accessory genes absent from the reference do not map). These
@@ -493,8 +493,8 @@ checks and a generic fastp Q30 rule.
   (`--qualibact-compat`) reads the species from a column, and without one it
   falls back to *E. coli* thresholds - first seen as an *E. coli* verdict for
   a *K. pneumoniae* sample.
-- **Outputs:** per-sample CSVs in `${outdir}/speccheck/samples/`, speccheck's
-  `report.csv` / `report.full.csv` / `report.html` in `${outdir}/speccheck/`,
+- **Outputs:** per-sample CSVs in `${outdir}/by_sample/<sample>/speccheck/`, speccheck's
+  `report.csv` / `report.full.csv` / `report.html` in `${outdir}/summary/speccheck/`,
   and `speccheck_overall_qc`, `speccheck_qualibact_qc`, `speccheck_reasons` in
   `sample_summary.csv`.
 - **Failures** retry, then are skipped for that sample (its speccheck columns
@@ -520,7 +520,7 @@ sample weren't checked.
 
 `SAMPLE_SUMMARY` (`modules/local/sample_summary/`,
 `bin/build_sample_summary.py`) builds one CSV with one row per sample -
-`${outdir}/sample_summary.csv` - so a reviewer can see the main verdict/metric
+`${outdir}/summary/sample_summary.csv` - so a reviewer can see the main verdict/metric
 from every stage above without opening several different TSVs. It doesn't
 replace those TSVs (which keep every field for each stage); it's a single
 at-a-glance table across stages, deliberately kept to one or two headline

@@ -2,7 +2,7 @@
 // Per-group reports: one MultiQC report and one sample_summary.csv for each
 // value of each field in --multiqc_group_by (e.g. each project_id, each tag),
 // in addition to the all-samples ones. Published to
-// ${outdir}/groups/<field>/<value>/.
+// ${outdir}/by_<field>/<value>/ (by_project, by_tag, ...).
 //
 // Groups come from the samplesheet: `project_id`, `sample_type`, `platform`
 // (one value per sample) or `tags` (colon-separated, a sample is in every

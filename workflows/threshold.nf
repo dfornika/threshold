@@ -144,7 +144,7 @@ workflow THRESHOLD {
     def ch_collated_versions = softwareVersionsToYAML(ch_versions.mix(topic_versions.versions_file))
         .mix(topic_versions_string)
         .collectFile(
-            storeDir: "${outdir}/pipeline_info",
+            storeDir: "${outdir}/run_info/pipeline_info",
             name:  'threshold_software_'  + 'mqc_'  + 'versions.yml',
             sort: true,
             newLine: true
@@ -182,7 +182,7 @@ workflow THRESHOLD {
     //
     // SUBWORKFLOW: per-group reports (--multiqc_group_by, e.g. each
     // project_id and tag) - a MultiQC report and sample_summary.csv per group,
-    // in ${outdir}/groups/<field>/<value>/, alongside the all-samples ones.
+    // in ${outdir}/by_<field>/<value>/, alongside the all-samples ones.
     //
     GROUP_REPORTS(
         ch_samplesheet,

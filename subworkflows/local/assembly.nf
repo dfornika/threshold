@@ -194,7 +194,7 @@ workflow ASSEMBLY_ANALYSIS {
 
             // Lineages actually present in --busco_db (lineages/<name>/). The
             // default must be one of them, since it is the fallback.
-            def busco_available = file("${params.busco_db}/lineages/*", type: 'dir').collect { d -> d.name } as Set
+            def busco_available = files("${params.busco_db}/lineages/*", type: 'dir').collect { d -> d.name } as Set
             if (!(params.busco_default_lineage in busco_available)) {
                 error("--busco_default_lineage ${params.busco_default_lineage} not found in ${params.busco_db}/lineages (found ${busco_available.size()} lineages)")
             }
@@ -248,7 +248,7 @@ workflow ASSEMBLY_ANALYSIS {
             .map { _meta, file -> file }
             .collectFile(
                 name: 'assembly_summary.tsv',
-                storeDir: "${outdir}/assembly",
+                storeDir: "${outdir}/summary/stage_tables",
                 sort: { file -> file.name },   // by file name (= sample), not full work-dir path, so row order is stable across runs
                 seed: "sample\tplatform\tassembler\tn_contigs\ttotal_length\tlargest_contig\tn50\tgenome_fraction\tcompleteness\tcontamination\tfeatures_complete\tfeatures_partial\tbusco_complete\tbusco_duplicated\tbusco_missing\tbusco_lineage\n"
             )

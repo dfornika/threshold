@@ -50,7 +50,7 @@ workflow READ_QC_AND_DEHOSTING {
         .map { meta, _reads -> "${meta.id}\t${meta.platform}\t${meta.sample_type}\t${meta.expected_taxid ?: 'NA'}\t${meta.project_id ?: 'NA'}\t${meta.tags ?: 'NA'}" }
         .collectFile(
             name: 'sample_manifest.tsv',
-            storeDir: "${outdir}/pipeline_info",
+            storeDir: "${outdir}/run_info/pipeline_info",
             sort: true,
             seed: "sample\tplatform\tsample_type\texpected_taxid\tproject_id\ttags\n",
             newLine: true
@@ -109,7 +109,7 @@ workflow READ_QC_AND_DEHOSTING {
             .map { _meta, file -> file }
             .collectFile(
                 name: 'dehost_summary.tsv',
-                storeDir: "${outdir}/dehost",
+                storeDir: "${outdir}/summary/stage_tables",
                 sort: { file -> file.name },   // by file name (= sample), not full work-dir path, so row order is stable across runs
                 seed: "sample\tplatform\tinput_reads\thost_reads\tdehosted_reads\tpercent_host\n"
             )

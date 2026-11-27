@@ -112,7 +112,7 @@ workflow ALIGNMENT_QC {
             .map { _meta, file -> file }
             .collectFile(
                 name: 'alignment_summary.tsv',
-                storeDir: "${outdir}/alignment",
+                storeDir: "${outdir}/summary/stage_tables",
                 sort: { file -> file.name },
                 seed: "sample\tplatform\tmean_depth\tmedian_depth\tfrac_ref_1x\tfrac_ref_10x\tfold_80_penalty\tfrac_reads_aligned\tmedian_insert_size\n"
             )

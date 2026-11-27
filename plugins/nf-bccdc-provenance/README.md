@@ -6,7 +6,7 @@ A Nextflow plugin that writes [BCCDC-PHL pipeline provenance](https://github.com
 
 ## What it writes
 
-At the end of a run, in `<outdir>/provenance/`:
+At the end of a run, in `<outdir>/provenance/` by default (threshold sets `directory` to `run_info/provenance`):
 
 - `<sample>_provenance.yml`, one per sample
 - `run_provenance.yml` for tasks that don't belong to a sample (e.g. MultiQC, the sample summary)
