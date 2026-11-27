@@ -62,10 +62,10 @@ caveats.
 9. **Reports** — an all-samples [MultiQC](http://multiqc.info/) report and
    `sample_summary.csv`, plus one of each per project and per tag (optional
    `project_id` / `tags` samplesheet columns; `--multiqc_group_by`) in
-   `groups/<field>/<value>/`.
+   `by_<field>/<value>/` (see [output](output.md)).
 10. **Provenance** — the pipeline's `nf-bccdc-provenance` plugin writes
     [BCCDC-PHL pipeline provenance](https://github.com/BCCDC-PHL/pipeline-provenance-schema)
-    records to `provenance/`: one `<sample>_provenance.yml` per sample (inputs
+    records to `run_info/provenance/`: one `<sample>_provenance.yml` per sample (inputs
     with `sha256`, each process with its tool versions, parameters and
     container, and outputs) plus `run_provenance.yml`. See
     [`plugins/nf-bccdc-provenance/README.md`](plugins/nf-bccdc-provenance/README.md).

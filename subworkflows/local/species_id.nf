@@ -118,7 +118,7 @@ workflow SPECIES_ID {
             .map { _meta, file -> file }
             .collectFile(
                 name: 'species_check_summary.tsv',
-                storeDir: "${outdir}/species_id",
+                storeDir: "${outdir}/summary/stage_tables",
                 sort: { file -> file.name },   // by file name (= sample), not full work-dir path, so row order is stable across runs
                 seed: "sample\tplatform\tverdict\texpected_taxid\taccession\tspecies_taxid\tspecies_name\tadjusted_ani\ttaxonomic_abundance\tn_hits\texpected_source\tmatched_taxid\tsequence_abundance\tsylph_dbs\tsylph_classified_pct\tkraken2_verdict\tkraken2_matched_taxid\tkraken2_expected_pct\tkraken2_classified_pct\tkraken2_top_taxon\tkraken2_top_pct\tkraken2_dbs\tkraken2_best_db\n"
             )

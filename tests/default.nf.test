@@ -32,14 +32,15 @@ nextflow_pipeline {
         then {
             // stable_path: All files + folders in ${params.outdir}/ with a stable path (including file name)
             def stable_path = getAllFilesFromDir(params.outdir, relative: true, includeDir: true, ignore: [
-                'pipeline_info/*.{html,json,txt}',
+                // timestamped Nextflow reports and params dump
+                'run_info/pipeline_info/*.{html,json,txt}',
                 // pipeline files nf-prov's RO-Crate copies into outdir; their
                 // content changes with every edit, so keep them out entirely
                 '{README.md,main.nf,nextflow.config,nextflow_schema.json,ro-crate-metadata.json}',
                 // per-group MultiQC internals: file names vary with the MultiQC
                 // version; the group reports' names and sample_summary.csv
                 // contents are what check the grouping
-                'groups/**/*_multiqc_report_{data,plots}/**',
+                'by_*/**/*_multiqc_report_{data,plots}/**',
             ])
             // stable_content: All files in ${params.outdir}/ with stable content
             def stable_content = getAllFilesFromDir(params.outdir, ignoreFile: 'tests/.nftignore')
@@ -47,7 +48,7 @@ nextflow_pipeline {
             assertAll(
                 { assert snapshot(
                     // pipeline versions.yml file for multiqc from which Nextflow version is removed because we test pipelines on multiple Nextflow versions
-                    removeNextflowVersion("$outputDir/pipeline_info/threshold_software_mqc_versions.yml"),
+                    removeNextflowVersion("$outputDir/run_info/pipeline_info/threshold_software_mqc_versions.yml"),
                     // All stable path name, with a relative path
                     stable_path,
                     // All files with stable contents

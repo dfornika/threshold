@@ -1,63 +1,99 @@
 # BCCDC-PHL/threshold: Output
 
-## Introduction
+Everything is published under `--outdir`, laid out by what you want to ask:
 
-This document describes the output produced by the pipeline. Most of the plots are taken from the MultiQC report, which summarises results at the end of the pipeline.
+```
+<outdir>/
+  summary/             all-samples results: start here
+  by_sample/<id>/      everything for one sample, by stage
+  by_project/<id>/     per-project reports (and by_tag/, by_sample_type/, by_platform/)
+  run_info/            how the run went: Nextflow reports and provenance
+  ro-crate-metadata.json   the archival provenance record (RO-Crate), with the
+                           pipeline files it copies: README.md, main.nf,
+                           nextflow.config, nextflow_schema.json, samplesheet.csv
+```
 
-The directories listed below will be created in the results directory after the pipeline has finished. All paths are relative to the top-level results directory.
+Publishing is an allowlist (`conf/modules.config`): a process publishes only if
+it has a rule there, so intermediates such as the alignment BAMs stay in the
+work directory. File names inside `by_sample/<id>/` keep the sample id, so they
+stay identifiable if you move them.
 
-<!-- TODO nf-core: Write this documentation describing your workflow's output -->
+## `summary/`
 
-## Pipeline overview
+- `sample_summary.csv` - one row per sample, with the key results of every
+  stage (read QC, dehosting, species check, assembly QC, alignment QC,
+  speccheck). The best single file to open first.
+- `multiqc/` - the all-samples [MultiQC](http://multiqc.info/) report
+  (`multiqc_report.html`, `multiqc_data/`, `multiqc_plots/`).
+- `speccheck/` - speccheck's `report.csv`, `report.full.csv` and `report.html`:
+  each assembled isolate against the QC criteria for its species.
+- `stage_tables/` - the per-stage tables behind `sample_summary.csv`, one row
+  per sample: `dehost_summary.tsv`, `species_check_summary.tsv`,
+  `assembly_summary.tsv` (isolates) and `alignment_summary.tsv` (isolates with
+  a reference). A table only exists if its stage produced rows.
 
-The pipeline is built using [Nextflow](https://www.nextflow.io/) and processes data using the following steps:
+## `by_sample/<id>/`
 
-- [FastQC](#fastqc) - Raw read QC
-- [fastp](#fastp) - Raw read QC
-- [fastplong](#fastplong) - Raw read QC
-- [MultiQC](#multiqc) - Aggregate report describing results and QC from the whole pipeline
-- [Pipeline information](#pipeline-information) - Report metrics generated during the workflow execution
+Only the stages that ran for the sample are present.
 
-### FastQC
+| Directory             | Contents                                                                                                              |
+| --------------------- | --------------------------------------------------------------------------------------------------------------------- |
+| `reads_qc/fastqc/`    | FastQC reports, `_raw` (before trimming) and `_final` (after dehosting)                                               |
+| `reads_qc/fastp/`     | fastp reports (Illumina), trimming and final pass                                                                     |
+| `reads_qc/fastplong/` | fastplong reports (Nanopore)                                                                                          |
+| `dehost/`             | `<id>.dehost.stats.tsv`; the reads themselves only on request (`--publish_dehosted_reads`, or the samplesheet column) |
+| `species_id/`         | `<id>.species_check.tsv`, the verdict against the samplesheet                                                         |
+| `species_id/sylph/`   | the sylph profile                                                                                                     |
+| `species_id/kraken2/` | kraken2 reports, one per database, when `--kraken2_db` is set                                                         |
+| `assembly/`           | `<id>.contigs.fa` (and `<id>.contigs.reoriented.fa` for Nanopore when dnaapler succeeded), `<id>.genome_size.txt`     |
+| `assembly/quast/`     | the full QUAST report                                                                                                 |
+| `assembly/checkm2/`   | CheckM2 output, with `--checkm2_db`                                                                                   |
+| `assembly/busco/`     | BUSCO short summaries, with `--busco_db`                                                                              |
+| `alignment/`          | riker metrics (coverage, alignment, GC bias, insert size for paired Illumina) for isolates with a reference           |
+| `speccheck/`          | `<id>.speccheck.csv`, the sample's speccheck result                                                                   |
 
-<details markdown="1">
-<summary>Output files</summary>
+## `by_<field>/<value>/`
 
-- `fastqc/`
-  - `*_fastqc.html`: FastQC report containing quality metrics.
-  - `*_fastqc.zip`: Zip archive containing the FastQC report, tab-delimited data file and plot images.
+For each field in `--multiqc_group_by` (default `project_id`), each value gets a
+MultiQC report and a `sample_summary.csv` filtered to its samples:
 
-</details>
+```
+by_project/<project_id>/    project_id-<value>_multiqc_report.html, sample_summary.csv
+by_tag/<tag>/               likewise; each tag of a sample is its own group
+by_sample_type/<type>/      likewise
+by_platform/<platform>/     likewise
+```
 
-[FastQC](http://www.bioinformatics.babraham.ac.uk/projects/fastqc/) gives general quality metrics about your sequenced reads. It provides information about the quality score distribution across your reads, per base sequence content (%A/T/G/C), adapter contamination and overrepresented sequences. For further reading and documentation see the [FastQC help pages](http://www.bioinformatics.babraham.ac.uk/projects/fastqc/Help/).
+These hold reports only. The sample data stays in `by_sample/`, so nothing is
+duplicated; a group's `sample_summary.csv` lists which samples to look at.
 
-### MultiQC
+## `run_info/`
 
-<details markdown="1">
-<summary>Output files</summary>
+- `pipeline_info/` - Nextflow's execution report, timeline, trace and DAG,
+  `params_<timestamp>.json`, `sample_manifest.tsv` (the samples as the pipeline
+  read them), and `threshold_software_mqc_versions.yml` (tool versions).
+- `provenance/` - [BCCDC-PHL pipeline provenance](https://github.com/BCCDC-PHL/pipeline-provenance-schema):
+  one `<sample>_provenance.yml` per sample plus `run_provenance.yml`.
 
-- `multiqc/`
-  - `multiqc_report.html`: a standalone HTML file that can be viewed in your web browser.
-  - `multiqc_data/`: directory containing parsed statistics from the different tools used in the pipeline.
-  - `multiqc_plots/`: directory containing static images from the report in various formats.
+## The RO-Crate (`ro-crate-metadata.json`)
 
-</details>
+A [Workflow Run RO-Crate](https://www.researchobject.org/workflow-run-crate/)
+written by nf-prov: the run, its inputs, parameters, tools and the published
+output files, in a standard form meant to outlive the pipeline. It is verbose
+on purpose. Day to day, use `run_info/provenance/` (BCCDC-PHL's own format, one
+record per sample with the sha256 of each input and output); the crate is the
+archival counterpart.
 
-[MultiQC](http://multiqc.info) is a visualization tool that generates a single HTML report summarising all samples in your project. Most of the pipeline QC results are visualised in the report and further statistics are available in the report data directory.
+It sits at the outdir root, with copies of the pipeline's `README.md`,
+`main.nf`, `nextflow.config`, `nextflow_schema.json` and the samplesheet beside
+it, so it is self-contained. nf-prov only records files inside the crate's
+directory and copies those files into it, so the crate cannot be tucked into a
+subdirectory without losing the outputs: in a comparable run the crate listed 77
+files at the root but only 21 from `run_info/`.
 
-Results generated by MultiQC collate pipeline QC from supported tools e.g. FastQC. The pipeline has special steps which also allow the software versions to be reported in the MultiQC output for future traceability. For more information about how to use MultiQC reports, see <http://multiqc.info>.
+## Adding a new process
 
-### Pipeline information
-
-<details markdown="1">
-<summary>Output files</summary>
-
-- `pipeline_info/`
-  - Reports generated by Nextflow: `execution_report.html`, `execution_timeline.html`, `execution_trace.txt` and `pipeline_dag.dot`/`pipeline_dag.svg`.
-  - Reports generated by the pipeline: `pipeline_report.html`, `pipeline_report.txt` and `software_versions.yml`. The `pipeline_report*` files will only be present if the `--email` / `--email_on_fail` parameter's are used when running the pipeline.
-  - Reformatted samplesheet files used as input to the pipeline: `samplesheet.valid.csv`.
-  - Parameters used by the pipeline run: `params.json`.
-
-</details>
-
-[Nextflow](https://www.nextflow.io/docs/latest/tracing.html) provides excellent functionality for generating various reports relevant to the running and execution of the pipeline. This will allow you to troubleshoot errors with the running of the pipeline, and also provide you with other information such as launch commands, run times and resource usage.
+Give it a `publishDir` in `conf/modules.config` if its results should be kept,
+under `by_sample/${meta.id}/<stage>/` for per-sample files. Without a rule
+nothing is published. For an all-samples table, write it with `collectFile` to
+`summary/stage_tables/`.
