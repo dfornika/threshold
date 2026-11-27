@@ -10,7 +10,10 @@
 // against criteria for the sample's species and assembly type (`short` for
 // Illumina, `long` for Nanopore). Metrics from a tool that didn't run are
 // simply not checked (e.g. CheckM2 completeness/contamination without
-// --checkm2_db). speccheck's default criteria include BUSCO thresholds for
+// --checkm2_db). The mean depth from the alignment QC goes in as a GHRU-style
+// depth table; speccheck's default criteria have no depth rows, so it is only
+// reported unless a --speccheck_criteria file adds `DepthParser.short` /
+// `DepthParser.long` rows. speccheck's default criteria include BUSCO thresholds for
 // every species (Complete and Missing), so with --busco_db they count towards
 // the verdict.
 //
@@ -41,6 +44,7 @@ workflow SPECCHECK {
     ch_busco_report     // tuple(meta, short_summary.*.txt) - from ASSEMBLY_ANALYSIS (only with --busco_db)
     ch_sylph_profile    // tuple(meta, profile.tsv) - from SPECIES_ID
     ch_fastp_json       // tuple(meta, json) - from READ_QC_AND_DEHOSTING (Illumina only)
+    ch_depth            // tuple(meta, depth.tsv) - GHRU-style depth table from ALIGNMENT_QC (isolates with a reference)
 
     main:
 
@@ -66,18 +70,19 @@ workflow SPECCHECK {
             .join(ch_fastp_json.map { meta, f -> tuple(meta.id, f) }, remainder: true)
             .join(ch_checkm2_report.map { meta, f -> tuple(meta.id, f) }, remainder: true)
             .join(ch_busco_report.map { meta, f -> tuple(meta.id, f) }, remainder: true)
+            .join(ch_depth.map { meta, f -> tuple(meta.id, f) }, remainder: true)
             .filter { entry -> entry[1] != null }   // assembled samples only
-            .branch { _id, _meta, _quast, organism, _sylph, _fastp, _checkm2, _busco ->
+            .branch { _id, _meta, _quast, organism, _sylph, _fastp, _checkm2, _busco, _depth ->
                 ready:   organism?.name
                 skipped: true
             }
 
-        ch_candidates.skipped.subscribe { id, _meta, _quast, organism, _sylph, _fastp, _checkm2, _busco ->
+        ch_candidates.skipped.subscribe { id, _meta, _quast, organism, _sylph, _fastp, _checkm2, _busco, _depth ->
             log.warn("speccheck: skipping ${id} - species check verdict '${organism?.verdict ?: 'none'}', so its species isn't settled enough to pick thresholds")
         }
 
-        def ch_collect_in = ch_candidates.ready.map { _id, meta, quast, organism, sylph, fastp, checkm2, busco ->
-            tuple(meta, [quast, sylph, fastp, checkm2, busco].findAll { f -> f }, organism.name)
+        def ch_collect_in = ch_candidates.ready.map { _id, meta, quast, organism, sylph, fastp, checkm2, busco, depth ->
+            tuple(meta, [quast, sylph, fastp, checkm2, busco, depth].findAll { f -> f }, organism.name)
         }
 
         def ch_criteria = params.speccheck_criteria ? channel.value(file(params.speccheck_criteria, checkIfExists: true)) : channel.value([])

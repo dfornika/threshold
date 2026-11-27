@@ -458,8 +458,11 @@ is on.
 - Because the reference is usually a species representative, the fraction of
   the reference covered and of reads aligned also reflect strain differences
   (plasmids and accessory genes absent from the reference do not map). These
-  are indicators only: nothing gates on them, and speccheck does not read
-  them (its default criteria have no depth rows).
+  are indicators only: nothing gates on them. The mean depth is also handed to
+  speccheck as a GHRU-style depth table (`Sample_id`, `Read_type`, `Depth`),
+  so it appears in speccheck's report; speccheck's default criteria have no
+  depth rows, so it only gates with a `--speccheck_criteria` file that adds
+  them.
 
 Checked on the dev isolates with the real riker container: *L. monocytogenes*
 ONT (5k reads, plain-FASTA reference) gave mean depth 1.09, 64% of the

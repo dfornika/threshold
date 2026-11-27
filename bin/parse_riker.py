@@ -10,6 +10,9 @@ category:
   --alignment  <prefix>.alignment-metrics.txt  fraction of reads aligned
   --isize      <prefix>.isize-metrics.txt      insert size (paired Illumina only)
 
+With --depth-out it also writes the mean depth as a GHRU-style depth table
+(Sample_id, Read_type, Depth) that speccheck can check against depth criteria.
+
 The alignment metrics have one row per read category: `pair` for paired reads
 (the whole-pair figure), `read1` for single-end reads. The insert-size file
 exists for every sample but is empty unless there are read pairs.
@@ -41,6 +44,24 @@ def alignment_row(all_rows):
     return by_category.get("pair") or by_category.get("read1") or (all_rows[0] if all_rows else None)
 
 
+def write_depth(path, sample, platform, mean_depth):
+    """GHRU-style depth table, the format speccheck's Depth parser reads.
+
+    One row: the sample, the read type (`long` for Nanopore, else `short`;
+    speccheck only applies short-read depth criteria to short-read rows) and
+    the mean depth of coverage over the reference. Nothing is written when
+    there is no numeric depth, because the parser rejects a non-numeric one.
+    """
+    try:
+        float(mean_depth)
+    except ValueError:
+        return
+    read_type = "long" if platform == "nanopore" else "short"
+    with open(path, "w") as fh:
+        fh.write("Sample_id\tRead_type\tDepth\n")
+        fh.write(f"{sample}\t{read_type}\t{mean_depth}\n")
+
+
 def main():
     ap = argparse.ArgumentParser(description=__doc__)
     ap.add_argument("--sample", required=True)
@@ -48,11 +69,20 @@ def main():
     ap.add_argument("--wgs", required=True, help="riker wgs-metrics.txt")
     ap.add_argument("--alignment", default=None, help="riker alignment-metrics.txt")
     ap.add_argument("--isize", default=None, help="riker isize-metrics.txt (omit or empty for unpaired reads)")
+    ap.add_argument(
+        "--depth-out",
+        default=None,
+        help="also write a GHRU-style depth table (Sample_id, Read_type, Depth) for speccheck; "
+        "not written when the mean depth is missing",
+    )
     args = ap.parse_args()
 
     wgs = (rows(args.wgs) or [None])[0]
     aln = alignment_row(rows(args.alignment))
     isize = (rows(args.isize) or [None])[0]
+
+    if args.depth_out:
+        write_depth(args.depth_out, args.sample, args.platform, pick(wgs, "mean_coverage"))
 
     print(
         "\t".join(

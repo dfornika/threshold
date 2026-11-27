@@ -12,6 +12,7 @@ process ALIGNMENT_SUMMARY {
 
     output:
     tuple val(meta), path("*.alignment_summary.tsv"), emit: summary
+    tuple val(meta), path("*.depth.tsv"),             emit: depth, optional: true   // GHRU-style depth table for speccheck; absent when there is no mean depth
 
     when:
     task.ext.when == null || task.ext.when
@@ -26,12 +27,14 @@ process ALIGNMENT_SUMMARY {
         --platform ${meta.platform} \\
         --wgs ${wgs} \\
         ${alignment_arg} \\
-        ${isize_arg} > ${prefix}.alignment_summary.tsv
+        ${isize_arg} \\
+        --depth-out ${prefix}.depth.tsv > ${prefix}.alignment_summary.tsv
     """
 
     stub:
     def prefix = task.ext.prefix ?: "${meta.id}"
     """
     printf '%s\\t%s\\tNA\\tNA\\tNA\\tNA\\tNA\\tNA\\tNA\\n' "${meta.id}" "${meta.platform}" > ${prefix}.alignment_summary.tsv
+    printf 'Sample_id\\tRead_type\\tDepth\\n%s\\tshort\\t0\\n' "${meta.id}" > ${prefix}.depth.tsv
     """
 }

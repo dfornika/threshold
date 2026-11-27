@@ -38,6 +38,14 @@ output:
           type: file
           description: One tab-separated row - sample, platform, mean_depth, median_depth, frac_ref_1x, frac_ref_10x, fold_80_penalty, frac_reads_aligned, median_insert_size
           pattern: "*.alignment_summary.tsv"
+  - depth:
+      - meta:
+          type: map
+          description: Groovy Map containing sample information
+      - "*.depth.tsv":
+          type: file
+          description: Optional. GHRU-style depth table (Sample_id, Read_type, Depth) read by speccheck's Depth parser; Read_type is long for Nanopore, else short
+          pattern: "*.depth.tsv"
 
 authors:
   - "@dfornika"

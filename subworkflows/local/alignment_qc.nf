@@ -16,6 +16,10 @@
 // absent from the reference will not map). Read them as indicators, not as
 // pass/fail thresholds.
 //
+// The mean depth is also emitted as a GHRU-style depth table (Sample_id,
+// Read_type, Depth) so speccheck can report it and check it against depth
+// criteria.
+//
 
 include { GUNZIP            } from '../../modules/nf-core/gunzip/main'
 include { SAMTOOLS_FAIDX    } from '../../modules/nf-core/samtools/faidx/main'
@@ -33,6 +37,7 @@ workflow ALIGNMENT_QC {
     main:
 
     def ch_alignment_summary = channel.value([])
+    def ch_depth = channel.empty()
 
     if (!params.skip_alignment_qc) {
         //
@@ -105,6 +110,8 @@ workflow ALIGNMENT_QC {
 
         def alignment_summary_out = ALIGNMENT_SUMMARY(ch_summary_in)
 
+        ch_depth = alignment_summary_out.depth
+
         // .ifEmpty([]): collectFile emits nothing if no sample reached this
         // stage (no isolates, or none with a reference), so SAMPLE_SUMMARY
         // still gets a usable value.
@@ -121,4 +128,5 @@ workflow ALIGNMENT_QC {
 
     emit:
     alignment_summary = ch_alignment_summary   // path (or []) - for SAMPLE_SUMMARY
+    depth             = ch_depth               // tuple(meta, depth.tsv) - GHRU-style depth table, for speccheck
 }

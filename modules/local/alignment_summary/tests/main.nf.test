@@ -40,6 +40,8 @@ nextflow_process {
                 { assert cols[7] == '0.90860' },         // frac_reads_aligned, from the pair row (read1 is 0.92970)
                 { assert cols[8] == '152.00' }           // median_insert_size
             )
+            // GHRU-style depth table for speccheck: short-read row, mean depth
+            assert path(process.out.depth.get(0).get(1)).readLines() == ['Sample_id\tRead_type\tDepth', 'pe\tshort\t0.64']
         }
     }
 
@@ -67,6 +69,7 @@ nextflow_process {
                 { assert cols[7] == '0.88640' },
                 { assert cols[8] == 'NA' }
             )
+            assert path(process.out.depth.get(0).get(1)).readLines() == ['Sample_id\tRead_type\tDepth', 'ont\tlong\t1.10']
         }
     }
 
