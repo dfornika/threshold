@@ -7,7 +7,10 @@ Everything is published under `--outdir`, laid out by what you want to ask:
   summary/             all-samples results: start here
   by_sample/<id>/      everything for one sample, by stage
   by_project/<id>/     per-project reports (and by_tag/, by_sample_type/, by_platform/)
-  run_info/            how the run went: Nextflow reports, provenance, RO-Crate
+  run_info/            how the run went: Nextflow reports and provenance
+  ro-crate-metadata.json   the archival provenance record (RO-Crate), with the
+                           pipeline files it copies: README.md, main.nf,
+                           nextflow.config, nextflow_schema.json, samplesheet.csv
 ```
 
 Publishing is an allowlist (`conf/modules.config`): a process publishes only if
@@ -71,16 +74,22 @@ duplicated; a group's `sample_summary.csv` lists which samples to look at.
   read them), and `threshold_software_mqc_versions.yml` (tool versions).
 - `provenance/` - [BCCDC-PHL pipeline provenance](https://github.com/BCCDC-PHL/pipeline-provenance-schema):
   one `<sample>_provenance.yml` per sample plus `run_provenance.yml`.
-- `ro-crate/` - a [Workflow Run RO-Crate](https://www.researchobject.org/workflow-run-crate/)
-  from nf-prov: `ro-crate-metadata.json` and copies of the pipeline's
-  `README.md`, `main.nf`, `nextflow.config`, `nextflow_schema.json` and the
-  samplesheet, so the crate is self-contained.
-  nf-prov only records files inside the crate directory, so the crate lists the
-  pipeline files, inputs and parameters but not most of the outputs (it logs
-  "Excluding workflow output ... outside of the RO-Crate directory"). The
-  outputs, with their sha256, are recorded in `provenance/`. Moving the crate
-  to the outdir root would list them, at the cost of the pipeline files
-  spilling into the top level again.
+
+## The RO-Crate (`ro-crate-metadata.json`)
+
+A [Workflow Run RO-Crate](https://www.researchobject.org/workflow-run-crate/)
+written by nf-prov: the run, its inputs, parameters, tools and the published
+output files, in a standard form meant to outlive the pipeline. It is verbose
+on purpose. Day to day, use `run_info/provenance/` (BCCDC-PHL's own format, one
+record per sample with the sha256 of each input and output); the crate is the
+archival counterpart.
+
+It sits at the outdir root, with copies of the pipeline's `README.md`,
+`main.nf`, `nextflow.config`, `nextflow_schema.json` and the samplesheet beside
+it, so it is self-contained. nf-prov only records files inside the crate's
+directory and copies those files into it, so the crate cannot be tucked into a
+subdirectory without losing the outputs: in a comparable run the crate listed 77
+files at the root but only 21 from `run_info/`.
 
 ## Adding a new process
 

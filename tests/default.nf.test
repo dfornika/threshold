@@ -34,9 +34,9 @@ nextflow_pipeline {
             def stable_path = getAllFilesFromDir(params.outdir, relative: true, includeDir: true, ignore: [
                 // timestamped Nextflow reports and params dump
                 'run_info/pipeline_info/*.{html,json,txt}',
-                // pipeline files nf-prov's RO-Crate copies next to its metadata;
-                // their content changes with every edit, so keep them out entirely
-                'run_info/ro-crate/{README.md,main.nf,nextflow.config,nextflow_schema.json,ro-crate-metadata.json}',
+                // pipeline files nf-prov's RO-Crate copies into outdir; their
+                // content changes with every edit, so keep them out entirely
+                '{README.md,main.nf,nextflow.config,nextflow_schema.json,ro-crate-metadata.json}',
                 // per-group MultiQC internals: file names vary with the MultiQC
                 // version; the group reports' names and sample_summary.csv
                 // contents are what check the grouping

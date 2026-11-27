@@ -108,6 +108,8 @@
                 "by_tag/synthetic/tags-synthetic_multiqc_report.html",
                 "by_tag/synthetic/tags-synthetic_multiqc_report_data",
                 "by_tag/synthetic/tags-synthetic_multiqc_report_plots",
+                "project_kraken2_dbs.abs.csv",
+                "project_sylph_dbs.abs.csv",
                 "run_info",
                 "run_info/pipeline_info",
                 "run_info/pipeline_info/sample_manifest.tsv",
@@ -120,10 +122,7 @@
                 "run_info/provenance/run_provenance.yml",
                 "run_info/provenance/tags_nanopore_provenance.yml",
                 "run_info/provenance/tags_synthetic_provenance.yml",
-                "run_info/ro-crate",
-                "run_info/ro-crate/project_kraken2_dbs.abs.csv",
-                "run_info/ro-crate/project_sylph_dbs.abs.csv",
-                "run_info/ro-crate/samplesheet.abs.csv",
+                "samplesheet.abs.csv",
                 "summary",
                 "summary/multiqc",
                 "summary/multiqc/multiqc_data",
@@ -310,7 +309,7 @@
                 "species_check_summary.tsv:md5,822c39eaa7c8d4a5fdeeb627d9f285cb"
             ]
         ],
-        "timestamp": "2026-11-27T11:33:14.533839985",
+        "timestamp": "2026-11-27T11:43:57.225268431",
         "meta": {
             "nf-test": "0.9.5",
             "nextflow": "26.04.4"

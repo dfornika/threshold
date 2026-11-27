@@ -65,8 +65,6 @@ workflow PIPELINE_INITIALISATION {
 
     ch_versions = channel.empty()
 
-    prepareRunInfoDirs(outdir)
-
     //
     // Print version and exit if required and dump pipeline parameters to JSON file
     //
@@ -259,14 +257,6 @@ def validateInputSamplesheet(input) {
 
     return [ metas[0], fastqs ]
 }
-//
-// Create the directory nf-prov copies the pipeline files into: it does not
-// create it, and the first copy would otherwise turn the path into a plain file.
-//
-def prepareRunInfoDirs(outdir) {
-    file("${outdir}/run_info/ro-crate").mkdirs()
-}
-
 //
 // Generate methods description for MultiQC
 //
