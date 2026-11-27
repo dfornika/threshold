@@ -379,7 +379,7 @@ Escherichia coli,short,DepthParser.short,Depth,>=,30,fail,local,
 Escherichia coli,long,DepthParser.long,Depth,>=,20,fail,local,
 ```
 
-A custom criteria file *replaces* the bundled one (QualiBact, BUSCO, ...), so
+A custom criteria file _replaces_ the bundled one (QualiBact, BUSCO, ...), so
 start from a copy of speccheck's `criteria.csv` and add these rows. The depth is
 measured against the sample's reference genome, so it reflects the reference
 choice (a species representative unless the samplesheet names one).
