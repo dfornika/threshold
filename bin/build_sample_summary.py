@@ -57,6 +57,13 @@ HEADER = [
     "assembly_busco_duplicated",
     "assembly_busco_missing",
     "assembly_busco_lineage",
+    "alignment_mean_depth",
+    "alignment_median_depth",
+    "alignment_frac_ref_1x",
+    "alignment_frac_ref_10x",
+    "alignment_fold_80_penalty",
+    "alignment_frac_reads_aligned",
+    "alignment_median_insert_size",
     "speccheck_overall_qc",
     "speccheck_qualibact_qc",
     "speccheck_reasons",
@@ -88,6 +95,7 @@ def main():
     ap.add_argument("--dehost")
     ap.add_argument("--species-check")
     ap.add_argument("--assembly")
+    ap.add_argument("--alignment")
     ap.add_argument("--speccheck", help="speccheck report.csv (comma-separated, keyed by sample_id)")
     args = ap.parse_args()
 
@@ -95,6 +103,7 @@ def main():
     dehost = index_by_sample(load_rows(args.dehost))
     species_check = index_by_sample(load_rows(args.species_check))
     assembly = index_by_sample(load_rows(args.assembly))
+    alignment = index_by_sample(load_rows(args.alignment))
     speccheck = load_speccheck(args.speccheck)
 
     writer = csv.DictWriter(sys.stdout, fieldnames=HEADER)
@@ -105,6 +114,7 @@ def main():
         d = dehost.get(sample, {})
         sc = species_check.get(sample, {})
         asm = assembly.get(sample, {})
+        aln = alignment.get(sample, {})
         sc_qc = speccheck.get(sample, {})
 
         writer.writerow(
@@ -147,6 +157,13 @@ def main():
                 "assembly_busco_duplicated": asm.get("busco_duplicated", NA),
                 "assembly_busco_missing": asm.get("busco_missing", NA),
                 "assembly_busco_lineage": asm.get("busco_lineage", NA),
+                "alignment_mean_depth": aln.get("mean_depth", NA),
+                "alignment_median_depth": aln.get("median_depth", NA),
+                "alignment_frac_ref_1x": aln.get("frac_ref_1x", NA),
+                "alignment_frac_ref_10x": aln.get("frac_ref_10x", NA),
+                "alignment_fold_80_penalty": aln.get("fold_80_penalty", NA),
+                "alignment_frac_reads_aligned": aln.get("frac_reads_aligned", NA),
+                "alignment_median_insert_size": aln.get("median_insert_size", NA),
                 "speccheck_overall_qc": sc_qc.get("overall_qc") or NA,
                 "speccheck_qualibact_qc": sc_qc.get("qualibact_qc") or NA,
                 "speccheck_reasons": sc_qc.get("reason_summary") or NA,

@@ -11,6 +11,7 @@ process SAMPLE_SUMMARY {
     path dehost, stageAs: 'dehost_summary.tsv?'
     path species_check, stageAs: 'species_check_summary.tsv?'
     path assembly, stageAs: 'assembly_summary.tsv?'
+    path alignment, stageAs: 'alignment_summary.tsv?'
     path speccheck, stageAs: 'speccheck_report.csv?'
 
     output:
@@ -23,6 +24,7 @@ process SAMPLE_SUMMARY {
     def dehost_arg        = dehost        ? "--dehost ${dehost}"               : ''
     def species_check_arg = species_check ? "--species-check ${species_check}" : ''
     def assembly_arg      = assembly      ? "--assembly ${assembly}"           : ''
+    def alignment_arg     = alignment     ? "--alignment ${alignment}"         : ''
     def speccheck_arg     = speccheck     ? "--speccheck ${speccheck}"         : ''
     """
     build_sample_summary.py \\
@@ -30,6 +32,7 @@ process SAMPLE_SUMMARY {
         ${dehost_arg} \\
         ${species_check_arg} \\
         ${assembly_arg} \\
+        ${alignment_arg} \\
         ${speccheck_arg} \\
         > sample_summary.csv
     """

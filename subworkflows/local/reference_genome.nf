@@ -1,8 +1,9 @@
 //
 // Reference genome per isolate sample - used by assembly QC (QUAST genome
-// fraction) and as the genome-size hint for the assemblers. Only `isolate`
-// samples are assembled, so only they get a reference, and nothing is
-// resolved or fetched at all when --skip_assembly is set.
+// fraction), as the genome-size hint for the assemblers, and by alignment QC
+// (minimap2 + riker). Only `isolate` samples get a reference, and nothing is
+// resolved or fetched at all when both --skip_assembly and
+// --skip_alignment_qc are set.
 //
 // Source, in priority order:
 //   1. the samplesheet's `reference` column - a local FASTA path, used as-is,
@@ -26,6 +27,11 @@ def isAssemblyAccession(value) {
     return value ==~ /^GC[AF]_\d+(\.\d+)?$/
 }
 
+// True when a stage that needs a reference is on.
+def referenceNeeded() {
+    return !(params.skip_assembly && params.skip_alignment_qc)
+}
+
 workflow REFERENCE_GENOME {
 
     take:
@@ -35,7 +41,7 @@ workflow REFERENCE_GENOME {
     main:
 
     def ch_isolates = ch_clean_reads
-        .filter { meta, _reads -> meta.sample_type == 'isolate' && !params.skip_assembly }
+        .filter { meta, _reads -> meta.sample_type == 'isolate' && referenceNeeded() }
         .map { meta, _reads -> tuple(meta.id, meta) }
 
     // Observed accession from the species check, only where it's consistent
@@ -47,7 +53,7 @@ workflow REFERENCE_GENOME {
     def ch_observed = ch_species_check.map { meta, file ->
         def cols = file.text.trim().split('\t')
         def consistent = cols[2] in ['match', 'not_checked']
-        if (meta.sample_type == 'isolate' && !params.skip_assembly && consistent && cols[4] != 'NA' && !isAssemblyAccession(cols[4])) {
+        if (meta.sample_type == 'isolate' && referenceNeeded() && consistent && cols[4] != 'NA' && !isAssemblyAccession(cols[4])) {
             log.warn("${meta.id}: species-ID top hit '${cols[4]}' isn't an NCBI assembly accession, so no reference will be fetched for it")
         }
         tuple(meta.id, (consistent && isAssemblyAccession(cols[4])) ? cols[4] : null)
@@ -67,7 +73,7 @@ workflow REFERENCE_GENOME {
 
     def ch_fetched_reference = channel.empty()
     def ch_fetched_gff       = channel.empty()
-    if (!params.skip_reference_genome_fetch && !params.skip_assembly) {
+    if (!params.skip_reference_genome_fetch && referenceNeeded()) {
         if (!params.reference_genome_cache_dir) {
             error("Reference genome fetch is enabled but --reference_genome_cache_dir was not set. Provide a cache directory or run with --skip_reference_genome_fetch.")
         }
