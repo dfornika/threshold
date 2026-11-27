@@ -75,6 +75,12 @@ duplicated; a group's `sample_summary.csv` lists which samples to look at.
   from nf-prov: `ro-crate-metadata.json` and copies of the pipeline's
   `README.md`, `main.nf`, `nextflow.config`, `nextflow_schema.json` and the
   samplesheet, so the crate is self-contained.
+  nf-prov only records files inside the crate directory, so the crate lists the
+  pipeline files, inputs and parameters but not most of the outputs (it logs
+  "Excluding workflow output ... outside of the RO-Crate directory"). The
+  outputs, with their sha256, are recorded in `provenance/`. Moving the crate
+  to the outdir root would list them, at the cost of the pipeline files
+  spilling into the top level again.
 
 ## Adding a new process
 
