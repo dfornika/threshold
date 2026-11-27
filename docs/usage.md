@@ -388,9 +388,7 @@ choice (a species representative unless the samplesheet names one).
 
 `--cleanup_workdir` (off by default) deletes the work directory once a run
 finishes successfully, so only the published results remain. A run that fails
-keeps its work directory, but a run that cleaned up cannot be resumed. Nextflow
-only deletes files it staged for this run, so on a shared work directory it is
-safest to give each run its own `-work-dir`.
+keeps its work directory, but a run that cleaned up cannot be resumed.
 
 ### Published reads
 
