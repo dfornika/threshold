@@ -1,0 +1,53 @@
+nextflow_process {
+
+    name "Test Process SAMPLE_SUMMARY"
+    script "../main.nf"
+    process "SAMPLE_SUMMARY"
+
+    tag "modules"
+    tag "modules_local"
+    tag "sample_summary"
+
+    // Only the species-check inputs are given: the other stages are optional
+    // and come out as NA. The fixtures cover each relationship between the
+    // sylph and kraken2 verdicts (species_check_concordance), including a
+    // tool that did not run and a sample with no species check at all.
+
+    test("species_check_concordance relates the sylph and kraken2 verdicts") {
+
+        when {
+            process {
+                """
+                input[0] = file("\${projectDir}/modules/local/sample_summary/tests/data/samples.tsv", checkIfExists: true)
+                input[1] = []
+                input[2] = file("\${projectDir}/modules/local/sample_summary/tests/data/species_check_summary.tsv", checkIfExists: true)
+                input[3] = []
+                input[4] = []
+                input[5] = []
+                """
+            }
+        }
+
+        then {
+            assert process.success
+            def lines = path(process.out.summary.get(0)).readLines()
+            def header = lines[0].split(',') as List
+            def col = header.indexOf('species_check_concordance')
+            assert col >= 0
+            def by_sample = lines.drop(1).collectEntries { line ->
+                def cols = line.split(',')
+                [(cols[0]): cols[col]]
+            }
+            assert by_sample == [
+                both_match:       'agree_match',
+                both_mismatch:    'agree_mismatch',
+                split:            'disagree',
+                long_sylph:       'sylph_only',
+                short_kraken2:    'kraken2_only',
+                unchecked:        'no_call',
+                no_kraken2:       'NA',
+                no_species_check: 'NA'
+            ]
+        }
+    }
+}

@@ -1,0 +1,9 @@
+sample	platform	sample_type	expected_taxid	project_id	tags
+both_match	illumina	isolate	562	p	t
+both_mismatch	illumina	isolate	562	p	t
+split	illumina	isolate	562	p	t
+long_sylph	nanopore	isolate	562	p	t
+short_kraken2	illumina	isolate	562	p	t
+unchecked	illumina	isolate	NA	p	t
+no_kraken2	nanopore	isolate	562	p	t
+no_species_check	nanopore	isolate	562	p	t
