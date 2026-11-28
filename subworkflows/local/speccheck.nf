@@ -48,7 +48,8 @@ workflow SPECCHECK {
 
     main:
 
-    def ch_report = channel.value([])
+    def ch_report  = channel.value([])
+    def ch_results = channel.empty()
 
     if (!params.skip_speccheck) {
         // [id, [name: species name or null, verdict: species-check verdict]] -
@@ -88,16 +89,18 @@ workflow SPECCHECK {
         def ch_criteria = params.speccheck_criteria ? channel.value(file(params.speccheck_criteria, checkIfExists: true)) : channel.value([])
 
         def speccheck_collect_out = SPECCHECK_COLLECT(ch_collect_in, ch_criteria)
+        ch_results = speccheck_collect_out.result
 
         // collect() emits nothing if no sample reached speccheck, so the
         // summary doesn't run; ifEmpty([]) gives SAMPLE_SUMMARY its usual
         // "stage produced nothing" placeholder.
         def speccheck_summary_out = SPECCHECK_SUMMARY(
-            speccheck_collect_out.result.map { _meta, csv -> csv }.collect()
+            speccheck_collect_out.result.map { _meta, csv -> csv }.collect().map { csvs -> tuple([id: 'all'], csvs) }
         )
-        ch_report = speccheck_summary_out.report.ifEmpty([])
+        ch_report = speccheck_summary_out.report.map { _meta, csv -> csv }.ifEmpty([])
     }
 
     emit:
-    report = ch_report   // path (or []) - speccheck report.csv, for SAMPLE_SUMMARY
+    report  = ch_report    // path (or []) - speccheck report.csv, for SAMPLE_SUMMARY
+    results = ch_results   // tuple(meta, <id>.speccheck.csv) - per-sample results, for the per-group speccheck reports
 }

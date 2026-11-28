@@ -1,0 +1,75 @@
+nextflow_workflow {
+
+    name "Per-group reports"
+    script "../subworkflows/local/group_reports.nf"
+    workflow "GROUP_REPORTS"
+    tag "workflows"
+
+    // Stubbed: this checks which groups get a speccheck report, not what
+    // speccheck says (the default pipeline test skips assembly, so it never
+    // reaches speccheck). S1 (project_a; tags x, y) and S2 (project_b; tag x)
+    // have a speccheck result; S3 (project_a) has none.
+
+    test("a speccheck report per group that has a result") {
+
+        options "-stub"
+
+        when {
+            params {
+                multiqc_group_by = 'project_id,tags'
+            }
+            workflow {
+                """
+                input[0] = channel.of(
+                    [[id: 'S1', project_id: 'project_a', tags: 'x:y'], []],
+                    [[id: 'S2', project_id: 'project_b', tags: 'x'], []],
+                    [[id: 'S3', project_id: 'project_a'], []]
+                )
+                input[1] = channel.empty()
+                input[2] = channel.empty()
+                input[3] = channel.value(file("\${projectDir}/tests/data/samplesheet.csv"))
+                input[4] = channel.of(
+                    [[id: 'S1', project_id: 'project_a', tags: 'x:y'], file("\${projectDir}/tests/data/speccheck_group/S1.speccheck.csv")],
+                    [[id: 'S2', project_id: 'project_b', tags: 'x'], file("\${projectDir}/tests/data/speccheck_group/S2.speccheck.csv")]
+                )
+                input[5] = []
+                input[6] = []
+                """
+            }
+        }
+
+        then {
+            assert workflow.success
+            // project_a (S1 only: S3 has no result), project_b, tags x (S1+S2), tags y (S1)
+            def groups = workflow.out.speccheck_report.collect { meta, _csv -> "${meta.field}:${meta.value}".toString() }.sort()
+            assert groups == ['project_id:project_a', 'project_id:project_b', 'tags:x', 'tags:y']
+        }
+    }
+
+    test("no speccheck results: no speccheck reports") {
+
+        options "-stub"
+
+        when {
+            params {
+                multiqc_group_by = 'project_id'
+            }
+            workflow {
+                """
+                input[0] = channel.of([[id: 'S1', project_id: 'project_a'], []])
+                input[1] = channel.empty()
+                input[2] = channel.empty()
+                input[3] = channel.value(file("\${projectDir}/tests/data/samplesheet.csv"))
+                input[4] = channel.empty()
+                input[5] = []
+                input[6] = []
+                """
+            }
+        }
+
+        then {
+            assert workflow.success
+            assert workflow.out.speccheck_report.size() == 0
+        }
+    }
+}

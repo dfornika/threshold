@@ -55,10 +55,12 @@ Only the stages that ran for the sample are present.
 ## `by_<field>/<value>/`
 
 For each field in `--multiqc_group_by` (default `project_id`), each value gets a
-MultiQC report and a `sample_summary.csv` filtered to its samples:
+MultiQC report, a `sample_summary.csv` filtered to its samples, and speccheck's
+report over just those samples (`speccheck/`: `report.csv`, `report.full.csv`,
+`report.html`, only for groups with at least one speccheck result):
 
 ```
-by_project/<project_id>/    project_id-<value>_multiqc_report.html, sample_summary.csv
+by_project/<project_id>/    project_id-<value>_multiqc_report.html, sample_summary.csv, speccheck/
 by_tag/<tag>/               likewise; each tag of a sample is its own group
 by_sample_type/<type>/      likewise
 by_platform/<platform>/     likewise

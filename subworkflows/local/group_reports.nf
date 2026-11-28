@@ -9,12 +9,18 @@
 // tag's group - the same convention as nf-core/seqinspector). A sample with
 // no value for a field (e.g. no project_id) is in no group for that field.
 //
+// Each group also gets speccheck's report (report.csv, report.full.csv,
+// report.html) over just its samples, in a speccheck/ subdirectory - only
+// groups with at least one speccheck result (assembled isolates whose species
+// is settled).
+//
 // Every per-sample MultiQC input keeps its sample's meta, so each group's
 // report gets exactly its samples' files, plus the run-level extras
 // (software versions, workflow summary, methods description).
 //
 
 include { MULTIQC as MULTIQC_GROUP } from '../../modules/nf-core/multiqc/main'
+include { SPECCHECK_SUMMARY as SPECCHECK_GROUP } from '../../modules/local/speccheck_summary/main'
 include { FILTER_SAMPLE_SUMMARY    } from '../../modules/local/filter_sample_summary/main'
 
 // [[field, value], ...] groups a sample belongs to for the requested fields.
@@ -33,10 +39,13 @@ workflow GROUP_REPORTS {
     ch_multiqc_files     // tuple(meta, file) - per-sample MultiQC inputs
     ch_multiqc_extra     // path - run-level MultiQC inputs (versions, workflow summary, methods)
     ch_sample_summary    // path - all-samples sample_summary.csv
+    ch_speccheck_results // tuple(meta, <id>.speccheck.csv) - per-sample speccheck results (empty when speccheck didn't run)
     multiqc_config       // path or [] - pipeline MultiQC config
     multiqc_logo         // path or []
 
     main:
+
+    def ch_speccheck_report = channel.empty()
 
     def fields = params.multiqc_group_by
         ? params.multiqc_group_by.toString().tokenize(',')*.trim().findAll { f -> f } as List<String>
@@ -76,5 +85,16 @@ workflow GROUP_REPORTS {
                 .map { key, ids -> tuple([id: "${key[0]}_${key[1]}", field: key[0], value: key[1]], ids) }
                 .combine(ch_sample_summary)
         )
+
+        // speccheck's report per group: the same grouping, over the per-sample
+        // speccheck results (a group with none gets no report).
+        def ch_speccheck_in = ch_speccheck_results
+            .flatMap { meta, csv -> groupKeys(meta, fields).collect { key -> tuple(key, csv) } }
+            .groupTuple()
+            .map { key, csvs -> tuple([id: "${key[0]}_${key[1]}", field: key[0], value: key[1]], csvs.sort { csv -> csv.name }) }
+        ch_speccheck_report = SPECCHECK_GROUP(ch_speccheck_in).report
     }
+
+    emit:
+    speccheck_report = ch_speccheck_report   // tuple(meta, report.csv) per group
 }

@@ -190,6 +190,7 @@ workflow THRESHOLD {
         ch_multiqc_files,
         ch_multiqc_extra_files,
         sample_summary_out.summary,
+        speccheck_out.results,
         ch_multiqc_config,
         ch_multiqc_logo
     )
