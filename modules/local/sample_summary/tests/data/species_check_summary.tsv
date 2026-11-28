@@ -1,0 +1,8 @@
+sample	verdict	kraken2_verdict
+both_match	match	match
+both_mismatch	mismatch	mismatch
+split	match	mismatch
+long_sylph	match	low_classified
+short_kraken2	no_hit	match
+unchecked	not_checked	not_checked
+no_kraken2	match	NA

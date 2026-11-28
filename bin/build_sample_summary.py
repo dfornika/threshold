@@ -43,6 +43,7 @@ HEADER = [
     "species_check_kraken2_classified_pct",
     "species_check_kraken2_top_taxon",
     "species_check_kraken2_dbs",
+    "species_check_concordance",
     "species_id_n_hits",
     "assembler",
     "assembly_n_contigs",
@@ -68,6 +69,38 @@ HEADER = [
     "speccheck_qualibact_qc",
     "speccheck_reasons",
 ]
+
+
+# Verdicts that are a real call about the expected taxa; anything else
+# (no_hit, unresolved, low_classified, not_checked) means the tool made none.
+CALLS = ("match", "mismatch")
+
+
+def concordance(sylph_verdict, kraken2_verdict):
+    """How the sylph and kraken2 verdicts relate, for finding the samples where
+    the two classifiers disagree (and so which one to trust for which data).
+
+      agree_match     both say the sample is within the expected taxa
+      agree_mismatch  both say it is not
+      disagree        one says match, the other mismatch
+      sylph_only      only sylph made a call (kraken2: no_hit / low_classified / ...)
+      kraken2_only    only kraken2 made a call
+      no_call         neither did (including: no expected taxa to check against)
+      NA              one of the tools did not run for the sample
+    """
+    if sylph_verdict in (None, "", NA) or kraken2_verdict in (None, "", NA):
+        return NA
+    s = sylph_verdict in CALLS
+    k = kraken2_verdict in CALLS
+    if s and k:
+        if sylph_verdict == kraken2_verdict:
+            return f"agree_{sylph_verdict}"
+        return "disagree"
+    if s:
+        return "sylph_only"
+    if k:
+        return "kraken2_only"
+    return "no_call"
 
 
 def load_rows(path):
@@ -143,6 +176,7 @@ def main():
                 "species_check_kraken2_classified_pct": sc.get("kraken2_classified_pct", NA),
                 "species_check_kraken2_top_taxon": sc.get("kraken2_top_taxon", NA),
                 "species_check_kraken2_dbs": sc.get("kraken2_dbs", NA),
+                "species_check_concordance": concordance(sc.get("verdict", NA), sc.get("kraken2_verdict", NA)),
                 "species_id_n_hits": sc.get("n_hits", NA),
                 "assembler": asm.get("assembler", NA),
                 "assembly_n_contigs": asm.get("n_contigs", NA),

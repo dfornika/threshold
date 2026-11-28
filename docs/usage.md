@@ -137,6 +137,28 @@ For `metagenomic` samples a taxon only needs to be present: `match` if E is at l
 
 The sylph verdict (`species_check`) is unchanged and is still what reference selection and speccheck use; the kraken2 verdict is reported alongside it, not combined with it.
 
+### Comparing sylph and kraken2
+
+Both tools run on both read types and neither is weighted against the other: sylph gates, kraken2 is advisory. To collect evidence on which to trust for which data, `sample_summary.csv` has a `species_check_concordance` column relating the two verdicts:
+
+| value            | meaning                                                               |
+| ---------------- | --------------------------------------------------------------------- |
+| `agree_match`    | both say the sample is within the expected taxa                       |
+| `agree_mismatch` | both say it is not                                                    |
+| `disagree`       | one says `match`, the other `mismatch`: the cases worth a look        |
+| `sylph_only`     | only sylph made a call (kraken2: `no_hit`, `low_classified`, ...)     |
+| `kraken2_only`   | only kraken2 made a call                                              |
+| `no_call`        | neither did, including samples with no expected taxa                  |
+| `NA`             | one of the tools didn't run for the sample (e.g. no kraken2 database) |
+
+`bin/tally_species_calls.py` turns one or more `sample_summary.csv` files into per-platform tallies (match, mismatch, no call and not run for each tool, plus the concordance counts); `--by project_id` groups by project instead and `--sample-type isolate` filters:
+
+```bash
+tally_species_calls.py run1/summary/sample_summary.csv run2/summary/sample_summary.csv
+```
+
+Only samples with something to check against are counted (their own `expected_taxid`, or their project's). The expected taxa are the ground truth, so the tallies are only as good as those labels, and a taxid above species rank makes `match` a weaker statement. A sample that appears in several files is counted once per file.
+
 **Resources:** each kraken2 task loads its whole database into memory (the module's default request is 72 GB). Many samples at once on one node may need `--memory-mapping` (`ext.args` for `KRAKEN2_KRAKEN2` in a custom config), which lets them share the operating system's cache, or a lower concurrency (`maxForks`).
 
 ## BUSCO lineages
