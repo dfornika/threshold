@@ -1,4 +1,5 @@
 process SPECCHECK_SUMMARY {
+    tag "$meta.id"
     label 'process_single'
 
     conda "${moduleDir}/environment.yml"
@@ -7,12 +8,12 @@ process SPECCHECK_SUMMARY {
         'community.wave.seqera.io/library/procps-ng_pip_speccheck-qc:42455f7a85228765' }"
 
     input:
-    path collected, stageAs: 'collected/*'   // per-sample CSVs from SPECCHECK_COLLECT
+    tuple val(meta), path(collected, stageAs: 'collected/*')   // per-sample CSVs from SPECCHECK_COLLECT; meta is the group ([id, field, value]) or [id: 'all']
 
     output:
-    path "speccheck_report/report.csv",      emit: report
-    path "speccheck_report/report.full.csv", emit: report_full
-    path "speccheck_report/report.html",     emit: html
+    tuple val(meta), path("speccheck_report/report.csv"),      emit: report
+    tuple val(meta), path("speccheck_report/report.full.csv"), emit: report_full
+    tuple val(meta), path("speccheck_report/report.html"),     emit: html
     tuple val("${task.process}"), val('speccheck'), eval("speccheck --version 2>&1 | sed 's/.*version: //'"), topic: versions, emit: versions_speccheck
 
     when:

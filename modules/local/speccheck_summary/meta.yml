@@ -13,6 +13,9 @@ tools:
       licence: ["GPL-3.0"]
 
 input:
+  - meta:
+      type: map
+      description: Groovy Map naming what is summarised, e.g. [id:'all'] or a group [id, field, value]
   - collected:
       type: file
       description: Per-sample CSVs from SPECCHECK_COLLECT
@@ -20,14 +23,23 @@ input:
 
 output:
   - report:
+      - meta:
+          type: map
+          description: Groovy Map as in the input
       - "speccheck_report/report.csv":
           type: file
           description: Compact merged result - sample_id, overall_qc, speccheck_qc, qualibact_qc, reason_summary, key metrics
   - report_full:
+      - meta:
+          type: map
+          description: Groovy Map as in the input
       - "speccheck_report/report.full.csv":
           type: file
           description: Full table - parser metrics, metadata and provenance
   - html:
+      - meta:
+          type: map
+          description: Groovy Map as in the input
       - "speccheck_report/report.html":
           type: file
           description: Interactive review report

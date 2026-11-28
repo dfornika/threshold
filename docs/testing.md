@@ -502,7 +502,9 @@ checks and a generic fastp Q30 rule.
   falls back to *E. coli* thresholds - first seen as an *E. coli* verdict for
   a *K. pneumoniae* sample.
 - **Outputs:** per-sample CSVs in `${outdir}/by_sample/<sample>/speccheck/`, speccheck's
-  `report.csv` / `report.full.csv` / `report.html` in `${outdir}/summary/speccheck/`,
+  `report.csv` / `report.full.csv` / `report.html` in `${outdir}/summary/speccheck/`
+  (and the same over each group's samples in `${outdir}/by_<field>/<value>/speccheck/`,
+  for the `--multiqc_group_by` groups; stub-tested in `tests/group_reports.nf.test`),
   and `speccheck_overall_qc`, `speccheck_qualibact_qc`, `speccheck_reasons` in
   `sample_summary.csv`.
 - **Failures** retry, then are skipped for that sample (its speccheck columns
