@@ -104,7 +104,8 @@ workflow THRESHOLD {
         assembly_analysis_out.checkm2_report,
         assembly_analysis_out.busco_report,
         species_id_out.sylph_profile,
-        read_qc_and_dehosting_out.fastp_json
+        read_qc_and_dehosting_out.fastp_json,
+        alignment_qc_out.depth
     )
 
     //

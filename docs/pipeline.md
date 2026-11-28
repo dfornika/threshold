@@ -50,7 +50,8 @@ caveats.
    the fraction of reads aligned and, for paired Illumina, the median insert
    size. The reference is usually a species representative, not the strain of
    the sample itself, so plasmids and accessory genes will not map: read these
-   as indicators, not pass / fail thresholds (speccheck does not use them).
+   as indicators, not pass / fail thresholds. The mean depth is also passed to
+   speccheck (next step) as a depth table.
    Toggle with `--skip_alignment_qc`.
 8. **Species-specific QC thresholds** — [`speccheck`](https://gitlab.com/cgps/tools/speccheck)
    checks each assembled isolate's QUAST, sylph, fastp and (with
@@ -58,7 +59,11 @@ caveats.
    the [QualiBact](https://qualibact.org) thresholds, giving a PASS / WARN /
    FAIL with reasons. Runs only when the species check agrees with the
    samplesheet (or there was no expected taxid). Toggle with `--skip_speccheck`;
-   custom criteria via `--speccheck_criteria`.
+   custom criteria via `--speccheck_criteria`. The alignment QC's mean depth
+   is included as a depth table, but speccheck's default criteria have no
+   depth rows, so depth is only reported until you supply criteria with
+   `DepthParser.short` / `DepthParser.long` rows (see
+   [usage](usage.md#speccheck-depth-criteria)).
 9. **Reports** — an all-samples [MultiQC](http://multiqc.info/) report and
    `sample_summary.csv`, plus one of each per project and per tag (optional
    `project_id` / `tags` samplesheet columns; `--multiqc_group_by`) in

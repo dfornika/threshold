@@ -365,6 +365,31 @@ The group directories are `by_project`, `by_tag`, `by_sample_type` and `by_platf
 
 `--multiqc_group_by` chooses the samplesheet fields to group by: a comma-separated list of `project_id`, `tags`, `sample_type` and `platform` (default `project_id`). Each of a sample's tags is its own group, so a sample can appear in several. Samples with no value for a field are in no group for it, so samplesheets without `project_id` or `tags` get no `groups/` directory. Set `--multiqc_group_by ''` (or `multiqc_group_by: ""` in a `-params-file`) to turn per-group reports off.
 
+### speccheck depth criteria
+
+The mean depth from the alignment QC reaches speccheck as a GHRU-style depth
+table (`Depth.Depth` and `Depth.Read_type` in `report.full.csv`;
+`long` for Nanopore, `short` for Illumina). speccheck's bundled criteria have
+no depth rows, so nothing gates on it by default. To gate, pass
+`--speccheck_criteria` with rows such as:
+
+```csv
+species,assembly_type,software,field,operator,value,severity,source,special_field
+Escherichia coli,short,DepthParser.short,Depth,>=,30,fail,local,
+Escherichia coli,long,DepthParser.long,Depth,>=,20,fail,local,
+```
+
+A custom criteria file _replaces_ the bundled one (QualiBact, BUSCO, ...), so
+start from a copy of speccheck's `criteria.csv` and add these rows. The depth is
+measured against the sample's reference genome, so it reflects the reference
+choice (a species representative unless the samplesheet names one).
+
+### Cleaning up the work directory
+
+`--cleanup_workdir` (off by default) deletes the work directory once a run
+finishes successfully, so only the published results remain. A run that fails
+keeps its work directory, but a run that cleaned up cannot be resumed.
+
 ### Published reads
 
 Read files aren't published by default: the output directory gets the QC reports, dehosting stats and analysis results, but not the reads themselves. To publish the final (trimmed, dehosted) reads to `dehost/`, use `--publish_dehosted_reads` for all samples, or set `publish_dehosted_reads` to `true` in the samplesheet for individual samples.

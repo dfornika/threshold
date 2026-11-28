@@ -375,6 +375,11 @@
                     "description": "Skip alignment-based QC (minimap2 + riker). On by default: each isolate with a reference genome has its reads aligned to it and coverage, alignment-rate and insert-size metrics collected.",
                     "fa_icon": "fas fa-forward"
                 },
+                "cleanup_workdir": {
+                    "type": "boolean",
+                    "description": "Delete the work directory when the run finishes successfully (Nextflow's cleanup option). Disables -resume for that run; a failed run keeps its work directory.",
+                    "fa_icon": "fas fa-broom"
+                },
                 "skip_speccheck": {
                     "type": "boolean",
                     "description": "Skip species-specific QC thresholds (speccheck, including QualiBact thresholds) for assembled isolates.",
