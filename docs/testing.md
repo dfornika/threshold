@@ -237,11 +237,16 @@ abundance calls the sample *E. coli*, as it should.
 `REFERENCE_GENOME` (`subworkflows/local/reference_genome.nf`) resolves one
 reference per `isolate` sample (only isolates are assembled, and nothing is
 resolved when both `--skip_assembly` and `--skip_alignment_qc` are set), used for QUAST's reference-based
-metrics, the assembler genome-size hint and alignment QC. Priority:
+metrics, the assembler genome-size hint and alignment QC. Priority (the
+selection logic is in `subworkflows/local/project_refs.nf`, unit-tested in
+`tests/project_refs.nf.test`; the default test gives `project_a` a local
+reference this way, so alignment QC runs on `SAMPLE_PE`):
 
 1. the samplesheet's `reference` column - a local FASTA path, used as-is, or
    an NCBI assembly accession (`GCF_`/`GCA_`), fetched;
-2. otherwise the accession of sylph's top hit, when `SPECIES_CHECK` found it
+2. otherwise the sample's project reference from `--project_alignment_refs`
+   (same forms), whatever the species check said - it is a deliberate choice;
+3. otherwise the accession of sylph's top hit, when `SPECIES_CHECK` found it
    consistent with the samplesheet (`match`, or `not_checked`) - never for a
    `mismatch`.
 

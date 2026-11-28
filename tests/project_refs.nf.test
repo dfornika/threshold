@@ -1,0 +1,146 @@
+nextflow_function {
+
+    name "Per-project alignment references"
+    script "../subworkflows/local/project_refs.nf"
+    tag "functions"
+
+    test("parseProjectRefs maps each project to its reference") {
+
+        function "parseProjectRefs"
+
+        when {
+            function {
+                """
+                input[0] = [['covid', 'GCF_009858895.2'], ['tb', '/refs/H37Rv.fasta']]
+                """
+            }
+        }
+
+        then {
+            assert function.success
+            assert function.result == [covid: 'GCF_009858895.2', tb: '/refs/H37Rv.fasta']
+        }
+    }
+
+    test("pickReference: the sample's own reference wins over its project's") {
+
+        function "pickReference"
+
+        when {
+            function {
+                """
+                input[0] = [id: 'S1', project_id: 'tb', reference: '/own.fasta']
+                input[1] = [tb: 'GCF_000195955.2']
+                input[2] = 'GCF_000000001.1'
+                """
+            }
+        }
+
+        then {
+            assert function.success
+            assert function.result == '/own.fasta'
+        }
+    }
+
+    test("pickReference: the project's reference wins over the species-ID hit") {
+
+        function "pickReference"
+
+        when {
+            function {
+                """
+                input[0] = [id: 'S1', project_id: 'tb']
+                input[1] = [tb: 'GCF_000195955.2']
+                input[2] = 'GCF_000000001.1'
+                """
+            }
+        }
+
+        then {
+            assert function.success
+            assert function.result == 'GCF_000195955.2'
+        }
+    }
+
+    test("pickReference: an unlisted or project-less sample falls back to the species-ID hit, or none") {
+
+        function "pickReference"
+
+        when {
+            function {
+                """
+                input[0] = [id: 'S1', project_id: 'other']
+                input[1] = [tb: 'GCF_000195955.2']
+                input[2] = 'GCF_000000001.1'
+                """
+            }
+        }
+
+        then {
+            assert function.success
+            assert function.result == 'GCF_000000001.1'
+        }
+    }
+
+    test("pickReference: no reference anywhere gives null") {
+
+        function "pickReference"
+
+        when {
+            function {
+                """
+                input[0] = [id: 'S1']
+                input[1] = [tb: 'GCF_000195955.2']
+                input[2] = null
+                """
+            }
+        }
+
+        then {
+            assert function.success
+            assert function.result == null
+        }
+    }
+
+    test("projectRefProblems: valid accessions and files, no problems") {
+
+        function "projectRefProblems"
+
+        when {
+            function {
+                """
+                input[0] = [[id: 'S1', project_id: 'covid'], [id: 'S2', project_id: 'tb']]
+                input[1] = [['covid', 'GCF_009858895.2'], ['tb', "\${projectDir}/tests/data/references/microbe_mini.fasta"]]
+                """
+            }
+        }
+
+        then {
+            assert function.success
+            assert function.result == [errors: [], warnings: []]
+        }
+    }
+
+    test("projectRefProblems: a repeated project, a missing file, and an unused project") {
+
+        function "projectRefProblems"
+
+        when {
+            function {
+                """
+                input[0] = [[id: 'S1', project_id: 'covid'], [id: 'S2']]
+                input[1] = [['covid', 'GCF_009858895.2'], ['covid', 'GCF_000195955.2'], ['covid', 'GCF_000195955.2'], ['tb', '/no/such/ref.fasta'], ['gone', 'GCF_000005845.2']]
+                """
+            }
+        }
+
+        then {
+            assert function.success
+            assert function.result.errors.size() == 2
+            assert function.result.errors[0].contains("project 'covid' is listed with more than one reference")
+            assert function.result.errors[1].contains("project 'tb'") && function.result.errors[1].contains('/no/such/ref.fasta')
+            assert function.result.warnings.size() == 1
+            assert function.result.warnings[0].contains('tb, gone')
+        }
+    }
+}

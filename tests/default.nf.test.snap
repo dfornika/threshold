@@ -28,6 +28,15 @@
                     "kraken2": "2.1.6",
                     "pigz": 2.8
                 },
+                "MINIMAP2_ALIGN": {
+                    "minimap2": "2.30-r1287"
+                },
+                "RIKER_MULTI": {
+                    "riker": "0.5.0"
+                },
+                "SAMTOOLS_FAIDX": {
+                    "samtools": 1.25
+                },
                 "SYLPH_PROFILE": {
                     "sylph": "1.0.0"
                 },
@@ -71,6 +80,17 @@
                 "by_sample/SAMPLE_ONT/species_id/sylph",
                 "by_sample/SAMPLE_ONT/species_id/sylph/SAMPLE_ONT.tsv",
                 "by_sample/SAMPLE_PE",
+                "by_sample/SAMPLE_PE/alignment",
+                "by_sample/SAMPLE_PE/alignment/SAMPLE_PE.alignment-metrics.txt",
+                "by_sample/SAMPLE_PE/alignment/SAMPLE_PE.gcbias-chart.pdf",
+                "by_sample/SAMPLE_PE/alignment/SAMPLE_PE.gcbias-detail.txt",
+                "by_sample/SAMPLE_PE/alignment/SAMPLE_PE.gcbias-summary.txt",
+                "by_sample/SAMPLE_PE/alignment/SAMPLE_PE.isize-histogram.pdf",
+                "by_sample/SAMPLE_PE/alignment/SAMPLE_PE.isize-histogram.txt",
+                "by_sample/SAMPLE_PE/alignment/SAMPLE_PE.isize-metrics.txt",
+                "by_sample/SAMPLE_PE/alignment/SAMPLE_PE.wgs-coverage.pdf",
+                "by_sample/SAMPLE_PE/alignment/SAMPLE_PE.wgs-coverage.txt",
+                "by_sample/SAMPLE_PE/alignment/SAMPLE_PE.wgs-metrics.txt",
                 "by_sample/SAMPLE_PE/dehost",
                 "by_sample/SAMPLE_PE/dehost/SAMPLE_PE.dehost.stats.tsv",
                 "by_sample/SAMPLE_PE/reads_qc",
@@ -108,6 +128,7 @@
                 "by_tag/synthetic/tags-synthetic_multiqc_report.html",
                 "by_tag/synthetic/tags-synthetic_multiqc_report_data",
                 "by_tag/synthetic/tags-synthetic_multiqc_report_plots",
+                "project_alignment_refs.abs.csv",
                 "project_kraken2_dbs.abs.csv",
                 "project_sylph_dbs.abs.csv",
                 "run_info",
@@ -253,11 +274,12 @@
                 "summary/multiqc/multiqc_report.html",
                 "summary/sample_summary.csv",
                 "summary/stage_tables",
+                "summary/stage_tables/alignment_summary.tsv",
                 "summary/stage_tables/dehost_summary.tsv",
                 "summary/stage_tables/species_check_summary.tsv"
             ],
             [
-                "sample_summary.csv:md5,f7ddc85b5886bc796f3e07ad433bb6f0",
+                "sample_summary.csv:md5,8c31c6007a52bb7e704516a89c5790e7",
                 "sample_summary.csv:md5,bedd22afdf290a36cd2bb060f99958d5",
                 "SAMPLE_ONT.dehost.stats.tsv:md5,2d077ed2b98ad06075b80b8a2ad57f09",
                 "SAMPLE_ONT.fastplong.json:md5,142166c0adc26a273717a11c4243b9f0",
@@ -265,6 +287,16 @@
                 "SAMPLE_ONT.species_check.tsv:md5,d5ad815bb9604cfefff6431ec3be0309",
                 "SAMPLE_ONT.sarscov2_mini_b.kraken2.report.txt:md5,b08ec30cf9f05bd56c04d46492c2ed8d",
                 "SAMPLE_ONT.tsv:md5,444980a4b547bc42540d034f221fa837",
+                "SAMPLE_PE.alignment-metrics.txt:md5,1ab0afc664c34f35cb0531f275cd75fc",
+                "SAMPLE_PE.gcbias-chart.pdf:md5,03c0261e96f4917cbc9bb40faa86deea",
+                "SAMPLE_PE.gcbias-detail.txt:md5,431d768ba388e4d36b7ab08efe9b0790",
+                "SAMPLE_PE.gcbias-summary.txt:md5,5479c468ad297360f956a7b7937dbd25",
+                "SAMPLE_PE.isize-histogram.pdf:md5,a7d6a045699924637e1ce9c371e2a442",
+                "SAMPLE_PE.isize-histogram.txt:md5,a6d2e3bad32e9aae52c00a1fc214a9fc",
+                "SAMPLE_PE.isize-metrics.txt:md5,ec00ec3cadf23d351872a029312c76a0",
+                "SAMPLE_PE.wgs-coverage.pdf:md5,788827bf90ce01bd9fda3a0aea38e0b6",
+                "SAMPLE_PE.wgs-coverage.txt:md5,90a04c28f3e8b8f778c7748186f35a7d",
+                "SAMPLE_PE.wgs-metrics.txt:md5,b1baa85fd56a7d61866b4ae06db878bc",
                 "SAMPLE_PE.dehost.stats.tsv:md5,a33a9699fbea12be2e862d7d8180e33b",
                 "SAMPLE_PE.fastp.json:md5,04dde2d1f0d25d93ecc87de86f78b883",
                 "SAMPLE_PE_final.fastp.json:md5,d6acc452adb15cecefd53aa3b1834672",
@@ -273,7 +305,7 @@
                 "SAMPLE_PE.sarscov2_mini_b.kraken2.report.txt:md5,ad2154a3e82c4f914d57dd5ba7e2a437",
                 "SAMPLE_PE.tsv:md5,444980a4b547bc42540d034f221fa837",
                 "sample_summary.csv:md5,bedd22afdf290a36cd2bb060f99958d5",
-                "sample_summary.csv:md5,f11467866924ec4132ccbb313eacf582",
+                "sample_summary.csv:md5,e61bb65d740f5bbe753ae679d00ca696",
                 "sample_manifest.tsv:md5,4ad639a3e66cc884f5c3c62271bab91f",
                 "fastp-seq-content-gc-plot_Read_1_After_filtering.txt:md5,98a54674db4d2cd52c8a76707a358e90",
                 "fastp-seq-content-gc-plot_Read_1_Before_filtering.txt:md5,98a54674db4d2cd52c8a76707a358e90",
@@ -304,12 +336,13 @@
                 "multiqc_fastqc.txt:md5,617dbf769d3fc5a981f0762d0e755afd",
                 "multiqc_general_stats.txt:md5,116421a649cb86e1a6eef57013fbd028",
                 "multiqc_kraken.txt:md5,b49d8c2521ab9b872b3d4f2aad2a5d80",
-                "sample_summary.csv:md5,f11467866924ec4132ccbb313eacf582",
+                "sample_summary.csv:md5,e61bb65d740f5bbe753ae679d00ca696",
+                "alignment_summary.tsv:md5,343cca5f27971fe72bf51b770c0c4ffd",
                 "dehost_summary.tsv:md5,f0653370a8b8a848d7df5af026d191a6",
                 "species_check_summary.tsv:md5,822c39eaa7c8d4a5fdeeb627d9f285cb"
             ]
         ],
-        "timestamp": "2026-11-27T11:43:57.225268431",
+        "timestamp": "2026-11-27T14:13:29.151293348",
         "meta": {
             "nf-test": "0.9.5",
             "nextflow": "26.04.4"

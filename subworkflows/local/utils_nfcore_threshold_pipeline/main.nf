@@ -13,6 +13,7 @@ include { paramsSummaryMap          } from 'plugin/nf-schema'
 include { samplesheetToList         } from 'plugin/nf-schema'
 include { parseProjectDbs           } from '../project_dbs'
 include { projectDbProblems         } from '../project_dbs'
+include { projectRefProblems        } from '../project_refs'
 include { paramsHelp                } from 'plugin/nf-schema'
 include { completionEmail           } from '../../nf-core/utils_nfcore_pipeline'
 include { completionSummary         } from '../../nf-core/utils_nfcore_pipeline'
@@ -131,6 +132,17 @@ workflow PIPELINE_INITIALISATION {
         def unknown = listed - used
         if (unknown) {
             log.warn("--project_expected_taxids lists project(s) with no samples in this samplesheet: ${unknown.join(', ')}")
+        }
+    }
+
+    // --project_alignment_refs: one reference per project, a fetchable
+    // accession or an existing FASTA.
+    if (params.project_alignment_refs) {
+        def ref_rows = samplesheetToList(params.project_alignment_refs, "${projectDir}/assets/schema_project_alignment_refs.json")
+        def ref_checks = projectRefProblems(samplesheet_rows.collect { row -> row[0] }, ref_rows)
+        ref_checks.warnings.each { warning -> log.warn(warning) }
+        if (ref_checks.errors) {
+            error("Problem with --project_alignment_refs:\n  - " + ref_checks.errors.join("\n  - "))
         }
     }
 
